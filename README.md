@@ -110,22 +110,6 @@ Tested against 217 authentic hard-negative clutter frames (white laptop keyboard
 | **Clean Suppression Rate (Conf >= 0.25)** | **100.00%** (0 / 217) | Zero spurious bounding boxes at low confidence |
 | **Clean Suppression Rate (Conf >= 0.50)** | **100.00%** (0 / 217) | 100% immune to false checkpoint activations in real usage |
 
-### 3. Visual Evidence & Diagnostic Curves
-
-<p align="center">
-  <img src="docs/assets/results.png" width="49%" alt="Training Metrics & Loss Curves" />
-  <img src="docs/assets/confusion_matrix_normalized.png" width="49%" alt="Normalized Confusion Matrix" />
-</p>
-
-<p align="center">
-  <img src="docs/assets/val_batch0_pred.jpg" width="98%" alt="Sample Milestone Segmentation Predictions on Real Environment" />
-</p>
-
-> 📄 **Official Benchmark Reports & Artifacts:**
-> - [Run 11 Benchmark & Engineering Report (Thai)](docs/ORIGAMI_YOLO_RUN11_YOLO11S-SEG_V3_BG_BENCHMARK_REPORT.md)
-> - [Raw Metrics JSON Summary](docs/origami_yolo_run11_yolo11s-seg_v3_bg_metrics.json)
-> - [Dataset Split & Zero-Leakage Audit History](docs/DATASET_SPLIT_AND_LEAKAGE_HISTORY.md)
-
 ---
 
 ## Operational Scope & Out-of-Distribution Defense
