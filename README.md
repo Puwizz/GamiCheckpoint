@@ -1,4 +1,4 @@
-# GamiSenpai
+# GamiCheckpoint
 
 Real-time origami folding verification web application powered by YOLO11 Instance Segmentation and FastAPI.
 
