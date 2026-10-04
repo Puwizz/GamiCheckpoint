@@ -50,24 +50,32 @@ Open **`http://localhost:8000`** in your browser.
 
 ## System Architecture
 
-```text
-Webcam Stream (1280x720)
-       │
-       ▼
-Frontend (TypeScript / Canvas HUD Overlay)
-       │  POST /api/predict (JPEG frame)
-       ▼
-FastAPI Backend (app/app.py)
-       │
-       ▼
-YoloStepVerifier (src/yolo_verifier.py)
-       │  YOLO11s-seg inference (conf >= 0.55, imgsz=640)
-       ▼
-Response: { prediction, confidence, top_gap, bbox, recognized }
-       │
-       ▼
-StepSessionEngine (frontend/src/session-engine.ts)
-       │  Streak gate (3 consecutive frames) -> Step Passed
+```mermaid
+flowchart TD
+    subgraph Browser["Client (Browser - TypeScript SPA)"]
+        Cam["Webcam 1280x720"]
+        Engine["StepSessionEngine (Streak Gate x3)"]
+        Canvas["Canvas HUD Overlay (Polygon Renderer)"]
+    end
+
+    subgraph Backend["Backend Gateway (FastAPI)"]
+        API["POST /api/predict"]
+        Registry["Figure Registry (configs/figures/*.json)"]
+    end
+
+    subgraph ML["ML Engine (Ultralytics PyTorch)"]
+        Verifier["YoloStepVerifier (YOLO11s-seg)"]
+        Gating["3-Tier Gating (Conf 55% | TopGap 8% | Area 1.5%)"]
+    end
+
+    Cam -->|Frame Blob JPEG| Engine
+    Engine -->|POST Multipart| API
+    API --> Registry
+    Registry --> Verifier
+    Verifier --> Gating
+    Gating -->|Prediction + Polygon Mask| API
+    API -->|HTTP 200 JSON| Engine
+    Engine -->|Render Mask Overlay| Canvas
 ```
 
 ### Verification & Gating Logic
