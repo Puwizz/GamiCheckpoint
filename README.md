@@ -166,6 +166,3 @@ GamiSenpai/
 
 ---
 
-## License & Affiliation
-
-Department of Applied Computer Science (ACS), King Mongkut's University of Technology Thonburi (KMUTT).
