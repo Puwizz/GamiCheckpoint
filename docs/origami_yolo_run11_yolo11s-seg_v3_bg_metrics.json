@@ -1,0 +1,77 @@
+{
+  "run_name": "origami_yolo_run11_yolo11s-seg_v3_bg",
+  "val_metrics": {
+    "box_mAP50": 91.36,
+    "box_mAP50_95": 86.26,
+    "box_precision": 91.4,
+    "box_recall": 80.07,
+    "seg_mAP50": 91.49,
+    "seg_mAP50_95": 85.92,
+    "seg_precision": 91.4,
+    "seg_recall": 80.07,
+    "per_class_seg": {
+      "Chk1": {
+        "map50": 98.43
+      },
+      "Chk2": {
+        "map50": 97.7
+      },
+      "Chk3": {
+        "map50": 84.67
+      },
+      "Chk4": {
+        "map50": 59.55
+      },
+      "Chk5": {
+        "map50": 90.9
+      },
+      "Chk6": {
+        "map50": 84.28
+      }
+    }
+  },
+  "test_metrics": {
+    "box_mAP50": 92.59,
+    "box_mAP50_95": 83.04,
+    "box_precision": 90.41,
+    "box_recall": 88.17,
+    "seg_mAP50": 93.45,
+    "seg_mAP50_95": 84.57,
+    "seg_precision": 90.99,
+    "seg_recall": 88.68,
+    "per_class_seg": {
+      "Chk1": {
+        "map50": 96.56
+      },
+      "Chk2": {
+        "map50": 85.49
+      },
+      "Chk3": {
+        "map50": 94.19
+      },
+      "Chk4": {
+        "map50": 79.73
+      },
+      "Chk5": {
+        "map50": 72.44
+      },
+      "Chk6": {
+        "map50": 79.01
+      }
+    }
+  },
+  "fp_metrics": {
+    "total_bg_images": 217,
+    "detections_at_010": 1,
+    "detections_at_025": 0,
+    "detections_at_050": 0,
+    "max_conf_observed": 0.1504,
+    "worst_false_positive": {
+      "image": "bg_session_006_noon_floor_v22_f5_noon_floor.jpg",
+      "class": "Chk5",
+      "conf": 0.1504
+    },
+    "clean_rate_at_025": 100.0,
+    "clean_rate_at_050": 100.0
+  }
+}
