@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "source_dir": "data/sessions",
+  "min_images_per_step": 30,
+  "min_image_width": 224,
+  "min_image_height": 224,
+  "splits": {
+    "train": [
+      "session_001_night_Xplor",
+      "session_003_val_floor_night_roomlight",
+      "session_004_train_blkwin_daylight"
+    ],
+    "val": [
+      "session_002_noon_Xpolr",
+      "session_006_noon_floor"
+    ],
+    "test": [
+      "session_005_test_orgnight_roomlight"
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+services:
+  gamisenpai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gamisenpai:latest
+    container_name: gamisenpai-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./checkpoints:/app/checkpoints:ro
+      - ./configs:/app/configs:ro
+    restart: unless-stopped

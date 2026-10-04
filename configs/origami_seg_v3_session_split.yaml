@@ -1,0 +1,12 @@
+# Origami Instance Segmentation Dataset (Zero-Leakage Session Split from Roboflow v3 Augmented)
+# Train: session_001, session_002, session_004 (1,292 images with augmentation)
+# Val:   session_003 (1,441 images)
+# Test:  session_005, session_006 (1,974 images)
+
+path: C:/Users/admin/OneDrive/Desktop/ACS_KMUTT/GamiSenpai/data/origami_seg_v3_session_split
+train: images/train
+val: images/val
+test: images/test
+
+nc: 6
+names: ['Chk1', 'Chk2', 'Chk3', 'Chk4', 'Chk5', 'Chk6']

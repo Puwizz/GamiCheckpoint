@@ -1,0 +1,90 @@
+{
+  "id": "crane",
+  "title_th": "นกกระเรียน (Orizuru)",
+  "title_en": "Origami Crane (Orizuru)",
+  "subtitle": "สัญลักษณ์แห่งความหวังและการมีอายุยืนยาว",
+  "description_th": "สุดยอดศิลปะการพับกระดาษดั้งเดิมของญี่ปุ่น 6 ขั้นตอน มีระบบแนะนำและตรวจเช็คความถูกต้องของทุกรอยพับ",
+  "description_en": "Traditional Japanese origami crane folded in 6 sequential milestone checkpoints with step-by-step guidance and verification.",
+  "status": "available",
+  "difficulty": "ระดับกลาง",
+  "difficulty_level": 2,
+  "estimated_minutes": 8,
+  "thumbnail": "/figures/crane.png",
+  "icon": "crane",
+  "model_path": "checkpoints/yolo_runs/origami_yolo_run11_yolo11s-seg_v3_bg/weights/best.pt",
+  "total_steps": 6,
+  "steps": [
+    {
+      "step_number": 1,
+      "class_name": "Chk1",
+      "name_en": "Square Base",
+      "name_th": "ฐานสี่เหลี่ยม (Square Base)",
+      "fold_tip": "พับครึ่งทแยงมุมและแนวขนาน รีดรอยพับให้คมชัด แล้วยุบมุมเข้าหากันจนเป็นสี่เหลี่ยมจัตุรัสซ้อนกัน",
+      "checkpoint_tip": "วางชิ้นงานให้ปลายเปิดชี้เข้าหากล้อง ตรวจสอบให้สันพับทั้งสี่ด้านเรียบเสมอกัน",
+      "reference_description": "Make a neat layered square base and show the open end clearly.",
+      "video_url": "/videos/step-1.mp4",
+      "fallback_image_url": "/references/step-1.png",
+      "min_confidence": 55
+    },
+    {
+      "step_number": 2,
+      "class_name": "Chk2",
+      "name_en": "Kite Folds",
+      "name_th": "พับสามเหลี่ยมว่าว (Kite Folds)",
+      "fold_tip": "หันด้านปลายเปิดลง แล้วพับขอบด้านข้างทั้งซ้ายและขวาเข้าไปชิดเส้นกึ่งกลาง (ทำทั้งด้านหน้าและด้านหลัง)",
+      "checkpoint_tip": "รอยพับสองข้างต้องประกบชิดเส้นกึ่งกลางพอดี ไม่เกยทับหรือห่างกันจนเกินไป",
+      "reference_description": "Look for a long, flat diamond with both side edges folded to the center.",
+      "video_url": "/videos/step-2.mp4",
+      "fallback_image_url": "/references/step-2.png",
+      "min_confidence": 55
+    },
+    {
+      "step_number": 3,
+      "class_name": "Chk3",
+      "name_en": "Bird Base",
+      "name_th": "ฐานนก (Bird Base / Petal Fold)",
+      "fold_tip": "กางรอยพับด้านข้างออก เปิดแผ่นกระดาษขึ้นแล้วรีดพับกลีบ (Petal fold) รีดแบนให้เป็นรูปข้าวหลามตัดยาว",
+      "checkpoint_tip": "ด้านล่างจะมีสองแฉกที่แยกออกจากกันอิสระ พร้อมจะดึงขึ้นเป็นคอและหาง",
+      "reference_description": "Look for the narrow bird base with two long lower points ready to become neck and tail.",
+      "video_url": "/videos/step-3.mp4",
+      "fallback_image_url": "/references/step-3.png",
+      "min_confidence": 55
+    },
+    {
+      "step_number": 4,
+      "class_name": "Chk4",
+      "name_en": "Neck & Tail Setup",
+      "name_th": "ดึงคอและหาง (Neck & Tail)",
+      "fold_tip": "พับทบด้านข้าง แล้วดึงปลายแหลมด้านล่างทั้งสองข้างเฉียงขึ้นเฉียงออก เพื่อสร้างคอและหาง",
+      "checkpoint_tip": "ทั้งคอและหางยกขึ้นทำมุมสวยงาม ปลายทั้งสองข้างยังตรงอยู่ ยังไม่พับหัวนก",
+      "reference_description": "Raise both narrow points into a neck and tail. The neck tip is still straight, with no head fold.",
+      "video_url": "/videos/step-4.mp4",
+      "fallback_image_url": "/references/step-4.png",
+      "min_confidence": 55
+    },
+    {
+      "step_number": 5,
+      "class_name": "Chk5",
+      "name_en": "Head Fold",
+      "name_th": "พับหัวนก (Head Fold)",
+      "fold_tip": "เลือกปลายด้านใดด้านหนึ่งเป็นคอ จากนั้นกดรอยพับย้อนกลับ (Reverse fold) พับปลายแหลมลงมาเป็นหัวนก",
+      "checkpoint_tip": "หัวนกต้องพับชี้ลงมาชัดเจน ขณะที่ปีกทั้งสองข้างยังคงประกบแนบสนิทอยู่",
+      "reference_description": "Fold the neck tip down to form the head while the wings remain folded.",
+      "video_url": "/videos/step-5.mp4",
+      "fallback_image_url": "/references/step-5.png",
+      "min_confidence": 55
+    },
+    {
+      "step_number": 6,
+      "class_name": "Chk6",
+      "name_en": "Completed Crane",
+      "name_th": "นกกระเรียนสมบูรณ์ (Completed Crane)",
+      "fold_tip": "ใช้นิ้วค่อยๆ ดึงปีกทั้งสองข้างกางออกจากกันเบาๆ ให้ลำตัวนกพองออกอย่างเป็นธรรมชาติ",
+      "checkpoint_tip": "กางปีกทั้งสองข้างหันเข้าหากล้อง ลำตัวพองสวยงาม มองเห็นทั้งหัว คอ ปีก และหางชัดเจน",
+      "reference_description": "Show the finished crane: folded head, tail, and both wings clearly visible.",
+      "video_url": "/videos/step-6.mp4",
+      "fallback_image_url": "/references/step-6.png",
+      "min_confidence": 55
+    }
+  ]
+}

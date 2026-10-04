@@ -1,0 +1,13 @@
+﻿# configs/origami_yolo.yaml
+path: C:/Users/admin/OneDrive/Desktop/ACS_KMUTT/GamiSenpai/data/yolo_dataset
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: Chk1
+  1: Chk2
+  2: Chk3
+  3: Chk4
+  4: Chk5
+  5: Chk6

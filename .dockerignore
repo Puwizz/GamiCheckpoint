@@ -1,0 +1,38 @@
+# === Python & Bytecode ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+
+# === Git & Config ===
+.git/
+.gitignore
+.dockerignore
+.vscode/
+.idea/
+
+# === Datasets & Media ===
+data/
+outputs/
+experiments/
+artifacts/
+*.mp4
+*.avi
+*.mov
+*.webm
+*.zip
+*.tar.gz
+
+# === Frontend Build Artifacts ===
+frontend/node_modules/
+node_modules/
+frontend/dist/
+
+# === Documentation & Notes ===
+docs/
+GamiSenPai_Obsidian/
+*.docx
+*.pdf

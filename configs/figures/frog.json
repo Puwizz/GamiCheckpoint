@@ -1,0 +1,66 @@
+{
+  "id": "frog",
+  "title_th": "กบกระโดด (Jumping Frog)",
+  "title_en": "Jumping Frog",
+  "subtitle": "โอริกามิแสนสนุกที่กระโดดได้จริงเมื่อกดหลัง",
+  "description_th": "พับง่าย สนุกสนาน พร้อมฟังก์ชันสปริงกระดาษที่ทำให้กบดีดตัวกระโดดไปข้างหน้าได้ เหมาะสำหรับผู้เริ่มต้นและเด็กๆ",
+  "description_en": "Fun action origami frog with an accordion spring fold that jumps forward when pressing its back.",
+  "status": "coming_soon",
+  "difficulty": "ระดับง่าย",
+  "difficulty_level": 1,
+  "estimated_minutes": 5,
+  "thumbnail": "/figures/frog.jpg",
+  "icon": "frog",
+  "model_path": null,
+  "total_steps": 4,
+  "steps": [
+    {
+      "step_number": 1,
+      "class_name": "Chk1",
+      "name_en": "Waterbomb Base",
+      "name_th": "ฐานสามเหลี่ยม (Waterbomb Base)",
+      "fold_tip": "พับสามเหลี่ยมทแยงมุมสองด้าน แล้วดันมุมข้างเข้าหากันจนเป็นสามเหลี่ยมประกบ",
+      "checkpoint_tip": "ฐานสามเหลี่ยมแบนเรียบ มีปีกสองข้างประกบกันตรงกลาง",
+      "reference_description": "Neat waterbomb triangle base with double flaps.",
+      "video_url": "",
+      "fallback_image_url": "/references/step-1.png",
+      "min_confidence": 35
+    },
+    {
+      "step_number": 2,
+      "class_name": "Chk2",
+      "name_en": "Front Legs Fold",
+      "name_th": "พับขาหน้า (Front Legs)",
+      "fold_tip": "พับปลายสามเหลี่ยมทั้งสองข้างขึ้นไปหาจุดยอด เพื่อสร้างขาหน้าของกบ",
+      "checkpoint_tip": "ขาหน้าทั้งสองข้างทำมุมสมมาตรชี้เฉียงขึ้นด้านบน",
+      "reference_description": "Front legs folded upward symmetrically.",
+      "video_url": "",
+      "fallback_image_url": "/references/step-2.png",
+      "min_confidence": 35
+    },
+    {
+      "step_number": 3,
+      "class_name": "Chk3",
+      "name_en": "Body Taper",
+      "name_th": "พับบีบลำตัว (Body Taper)",
+      "fold_tip": "พับขอบด้านข้างของลำตัวกบทั้งซ้ายและขวาเข้ามาหาเส้นกึ่งกลาง",
+      "checkpoint_tip": "ลำตัวเรียวกระชับ รอยพับสองข้างจรดกัน",
+      "reference_description": "Narrow diamond body with sides folded into center.",
+      "video_url": "",
+      "fallback_image_url": "/references/step-3.png",
+      "min_confidence": 35
+    },
+    {
+      "step_number": 4,
+      "class_name": "Chk4",
+      "name_en": "Spring Back Leg",
+      "name_th": "พับสปริงขาหลัง (Spring Fold)",
+      "fold_tip": "พับทบส่วนล่างขึ้น แล้วพับย้อนกลับลงมาครึ่งหนึ่งเพื่อทำสปริงดีดตัว",
+      "checkpoint_tip": "สปริงขาหลังพับแบบขั้นบันได พร้อมดีดตัวเมื่อกด",
+      "reference_description": "Accordion folded back legs ready to jump.",
+      "video_url": "",
+      "fallback_image_url": "/references/step-4.png",
+      "min_confidence": 35
+    }
+  ]
+}

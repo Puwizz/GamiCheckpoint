@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GamiSenpai - AI Origami Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Noto+Sans+Thai:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <div class="header-top-row">
+                <a href="#" id="brand-home-link" class="brand-badge-link" aria-label="กลับหน้าหลัก GamiSenpai">
+                    <div class="brand-badge">
+                        <svg class="brand-origami-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polygon points="12 2 2 22 22 22 12 2" />
+                            <line x1="12" y1="2" x2="12" y2="22" />
+                            <line x1="2" y1="22" x2="12" y2="15" />
+                            <line x1="22" y1="22" x2="12" y2="15" />
+                        </svg>
+                        <span id="brand-header-tag" class="brand-tag">ORIGAMI STUDIO</span>
+                    </div>
+                </a>
+
+                <div class="header-nav-actions">
+                    <button id="btn-back-to-gallery" class="btn secondary nav-back-btn hidden" type="button" aria-label="กลับหน้าหลัก">
+                        <span class="nav-arrow">‹</span> กลับหน้าหลัก (Home)
+                    </button>
+                </div>
+            </div>
+
+            <h1 class="brand-title"><a href="#" id="brand-title-link" class="brand-title-link"><span class="highlight">Gami</span>Senpai</a></h1>
+            <p class="brand-sub">สตูดิโอฝึกพับโอริกามิ พร้อมคำแนะนำและตรวจเช็คความถูกต้องทีละขั้นตอน</p>
+        </header>
+
+        <section id="view-gallery" class="view-section">
+            <div class="gallery-hero">
+                <h2 class="gallery-title">เลือกชิ้นงานโอริกามิที่คุณต้องการพับ</h2>
+                <p class="gallery-subtitle">ฝึกฝนศิลปะการพับกระดาษทีละขั้นตอน พร้อมคำแนะนำและตรวจทานรอยพับอย่างแม่นยำ</p>
+
+                <div class="gallery-filters" role="tablist" aria-label="ตัวกรองคลังโมเดลโอริกามิ">
+                    <button class="filter-tab active" data-filter="all" type="button" role="tab" aria-selected="true">
+                        <span>ทั้งหมด</span>
+                        <span class="filter-count" id="count-all">0</span>
+                    </button>
+                    <button class="filter-tab" data-filter="available" type="button" role="tab" aria-selected="false">
+                        <span class="filter-dot available"></span>
+                        <span>พร้อมฝึกพับ</span>
+                        <span class="filter-count" id="count-available">0</span>
+                    </button>
+                    <button class="filter-tab" data-filter="coming_soon" type="button" role="tab" aria-selected="false">
+                        <span class="filter-dot dev"></span>
+                        <span>เร็วๆ นี้</span>
+                        <span class="filter-count" id="count-coming-soon">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="figures-grid" class="figures-grid">
+
+                <div class="gallery-loading">
+                    <div class="spinner"></div>
+                    <p>กำลังโหลดคลังโมเดลโอริกามิ...</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-workspace" class="view-section hidden">
+            <main>
+
+                <div class="camera-card glass-panel stage-card">
+
+                    <div class="mode-badge-bar">
+                        <button id="mode-pill-watch" class="mode-pill active" type="button">โหมดดูคลิปสอน & พับตาม</button>
+                        <button id="mode-pill-verify" class="mode-pill" type="button">โหมดเปิดกล้องตรวจ</button>
+                    </div>
+
+                    <div id="watch-stage" class="stage-view">
+                        <div class="video-container tutor-video-container">
+                            <video id="tutorial-video" playsinline loop muted></video>
+                            <div id="video-fallback-container" class="video-fallback hidden">
+                                <img id="fallback-guide-image" class="fallback-image" src="/references/step-1.png" alt="Fold guide fallback">
+                                <div class="fallback-badge">แสดงภาพประกอบแนะนำ (Image Guide Mode)</div>
+                            </div>
+                            <div id="video-loading-overlay" class="overlay hidden">
+                                <div class="spinner"></div>
+                                <p>กำลังโหลดวิดีโอสอน...</p>
+                            </div>
+                        </div>
+
+                        <div class="video-controls-bar">
+                            <button id="btn-video-play" class="btn icon-btn" title="เล่น / หยุดวิดีโอ">หยุด</button>
+                            <div class="speed-selector" title="ปรับความเร็ววิดีโอ">
+                                <span class="speed-label">ความเร็ว:</span>
+                                <button id="btn-speed-05" class="speed-pill" type="button">0.5x</button>
+                                <button id="btn-speed-075" class="speed-pill" type="button">0.75x</button>
+                                <button id="btn-speed-10" class="speed-pill active" type="button">1.0x</button>
+                            </div>
+                            <button id="btn-video-loop" class="btn icon-btn active" title="วนลูปวิดีโอ">วนลูป: เปิด</button>
+                            <button id="btn-video-mute" class="btn icon-btn" title="เปิด/ปิดเสียง">ปิดเสียง</button>
+                        </div>
+
+                        <div class="watch-action-bar">
+                            <button id="btn-start-verify" class="btn primary btn-cta-verify">
+                                พับเสร็จแล้ว! เปิดกล้องตรวจ
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="verify-stage" class="stage-view hidden">
+                        <div class="video-container">
+                            <video id="webcam" autoplay playsinline></video>
+                            <canvas id="detection-overlay" class="detection-overlay"></canvas>
+                            <div id="processing-overlay" class="overlay hidden">
+                                <div class="spinner"></div>
+                                <p>กำลังวิเคราะห์รอยพับ...</p>
+                            </div>
+                        </div>
+
+                        <div id="escape-hatch-banner" class="escape-hatch-banner hidden">
+                            <div class="escape-hatch-content">
+                                <div class="escape-hatch-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="12" y1="16" x2="12" y2="12" />
+                                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <strong>ตรวจไม่พบหรือแสงไม่พอใช่ไหมครับ?</strong>
+                                    <p>ลองปรับมุมกระดาษให้อยู่กลางกล้อง หรือกดข้ามเพื่อไปต่อได้ทันทีครับ</p>
+                                </div>
+                            </div>
+                            <button id="btn-skip-step" class="btn warning-btn" type="button">ข้ามขั้นตอนนี้ (Manual Pass)</button>
+                        </div>
+
+                        <div class="controls-wrapper">
+                            <div class="verify-top-actions">
+                                <button id="btn-back-to-watch" class="btn secondary" type="button">← ขอดูคลิปสอนอีกรอบ</button>
+                            </div>
+
+                            <div class="camera-toolbar">
+                                <select id="camera-select" class="camera-select">
+                                    <option value="">Loading cameras...</option>
+                                </select>
+                                <button id="btn-refresh-cameras" class="btn secondary camera-refresh" type="button">Refresh Cameras</button>
+                            </div>
+                            <div class="detection-toolbar">
+                                <label class="toggle-switch" title="Toggle Object Detection Bounding Box Overlay">
+                                    <input type="checkbox" id="toggle-detection-box" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="toggle-label">Detection Box (ROI)</span>
+                                </label>
+                                <span id="roi-method-badge" class="roi-badge hidden">Auto-Crop</span>
+                            </div>
+                            <div id="camera-hint" class="camera-hint">
+                                Connect Iriun Webcam on your phone and PC, then press Refresh Cameras if it does not appear yet.
+                            </div>
+                            <div class="controls">
+                                <button id="btn-start" class="btn primary">Start Camera</button>
+                                <button id="btn-stop" class="btn secondary" disabled>Stop</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-card glass-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <span id="workspace-figure-tag" class="workspace-figure-tag">กำลังฝึกพับ: นกกระเรียน</span>
+                            <h2>Guided Check</h2>
+                            <p id="current-step-title">Step 1: Square Base</p>
+                        </div>
+                        <button id="btn-reset" class="btn icon-btn" title="Restart guided flow">Reset</button>
+                    </div>
+
+                    <div id="step-progress" class="step-progress"></div>
+
+                    <section class="step-reference" aria-live="polite" aria-label="Current step reference">
+                        <div class="reference-copy">
+                            <span class="reference-eyebrow">TARGET SHAPE</span>
+                            <h3 id="reference-step-title">Step 1: Square Base</h3>
+                            <p id="reference-step-description">Make a neat layered square base and show the open end clearly.</p>
+                        </div>
+                        <img
+                            id="step-reference-image"
+                            class="reference-image"
+                            src="/references/step-1.png"
+                            alt="Reference shape for Step 1: Square Base"
+                        >
+                        <p class="reference-note">Match the shape, not the paper color or the exact camera angle.</p>
+                    </section>
+
+                    <div id="result-display" class="status-box waiting">
+                        <div class="status-icon">...</div>
+                        <div class="status-text">
+                            <h3>Waiting for camera...</h3>
+                            <p>Start with the square base and hold it steady in frame.</p>
+                        </div>
+                    </div>
+
+                    <div class="details">
+                        <div class="detail-item">
+                            <span class="label">Current Checkpoint:</span>
+                            <span id="lbl-current-step" class="value">Step 1</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">AI Detected:</span>
+                            <span id="lbl-step" class="value">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Confidence:</span>
+                            <span id="lbl-confidence" class="value">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="tips-box">
+                        <h4>Senpai's Tip:</h4>
+                        <p id="senpai-tip">Show the square base clearly with the layered shape lying flat in frame.</p>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <div id="celebration-modal" class="modal-overlay hidden" aria-hidden="true">
+            <div class="celebration-card glass-panel">
+                <div class="celebration-seal" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" width="52" height="52" fill="none" stroke="var(--color-bamboo)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="24" cy="24" r="21" stroke-dasharray="3 3" />
+                        <polyline points="15 24 22 31 33 18" />
+                    </svg>
+                </div>
+                <h2 id="celebration-title">ยอดเยี่ยมมาก! Step 1 ผ่านเรียบร้อย</h2>
+                <p id="celebration-subtitle">เตรียมพบกับวิดีโอสอนขั้นตอนถัดไปใน 2 วินาที...</p>
+                <div class="celebration-progress-bar"><div class="celebration-bar-fill"></div></div>
+            </div>
+        </div>
+
+        <div id="completion-modal" class="modal-overlay hidden" aria-hidden="true">
+            <div class="completion-card glass-panel">
+                <div class="completion-seal" aria-hidden="true">
+                    <svg viewBox="0 0 64 64" width="60" height="60" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="32 6 8 54 56 54 32 6" />
+                        <line x1="32" y1="6" x2="32" y2="54" />
+                        <line x1="8" y1="54" x2="32" y2="38" />
+                        <line x1="56" y1="54" x2="32" y2="38" />
+                    </svg>
+                </div>
+                <h2 id="completion-title">ยินดีด้วยครับ! ผลงานเสร็จสมบูรณ์แล้ว</h2>
+                <p id="completion-subtitle">คุณผ่านการพับโอริกามิครบทุกขั้นตอนด้วยความช่วยเหลือของ GamiSenpai</p>
+                <div class="completion-actions">
+                    <button id="btn-restart-course" class="btn primary btn-xl">เริ่มพับชิ้นใหม่</button>
+                    <button id="btn-completion-back-gallery" class="btn secondary btn-xl">กลับสู่คลังโมเดล (Hub)</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="app-toast" class="app-toast hidden" role="status" aria-live="polite">
+            <div class="toast-content">
+                <span id="toast-icon" class="toast-icon">✨</span>
+                <span id="toast-message" class="toast-message"></span>
+            </div>
+        </div>
+
+        <footer></footer>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

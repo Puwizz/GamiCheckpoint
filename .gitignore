@@ -1,0 +1,126 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+/dist/
+/build/
+*.egg
+
+# === Frontend ===
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+build/
+
+# === Virtual Environment ===
+venv/
+env/
+.venv/
+.venv*/
+
+# === Environment Variables & Secrets ===
+.env
+.env.*
+*.env
+
+# === AI Agents & Scratch / Cache ===
+.agents/
+.scratch/
+scratch/
+imgs/
+.hallmark/
+skills-lock.json
+.claude/
+.gemini/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === Jupyter ===
+.ipynb_checkpoints/
+*.ipynb_metadata/
+
+# === Data, Sessions & Archives ===
+data/raw/
+**/raw_data_video/
+data/processed/
+data/step6/
+data/archive/
+data/sessions/
+data/yolo_dataset/
+data/yolo_curated/
+data/origami_seg*/
+data/origami_seg_backup/
+data/background_candidates/
+data/*.zip
+*.zip
+*.tar.gz
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.mp4
+*.avi
+*.mov
+*.webm
+*.mkv
+
+# Keep reference & asset images in Git
+!data/references/*.jpg
+!data/references/*.png
+!frontend/public/references/*.png
+!frontend/public/figures/*
+!frontend/public/videos/*.mp4
+!data/samples/*.png
+!checkpoints/*.png
+
+# === Models & Checkpoints ===
+weights/*.pt
+weights/**/*.pt
+weights/*.pth
+weights/**/*.pth
+weights/*.onnx
+weights/**/*.onnx
+!weights/**/.gitkeep
+*.pt
+checkpoints/*.pth
+checkpoints/*.pt
+checkpoints/*.onnx
+checkpoints/**/*.pth
+checkpoints/**/*.pt
+checkpoints/**/*.onnx
+checkpoints/yolo_runs/
+
+# === Outputs & Runs ===
+outputs/
+runs/
+
+# === Obsidian Settings & Cache ===
+**/.obsidian/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Weights & Biases ===
+wandb/
+
+# === Internal & Segmentation Generation Scripts ===
+scripts/yolo/generate_seg_dataset.py
+
+# === Documentation & Workflow ===
+PROJECT_STATUS.md
+docs/
+AI_WORKFLOW.md
+*AI_WORKFLOW*.md
+
+# === Misc ===
+*.log
+*.tmp

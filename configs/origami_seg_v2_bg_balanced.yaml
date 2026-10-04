@@ -1,0 +1,16 @@
+# Origami Instance Segmentation Dataset v2 (Balanced Session Split + Backgrounds)
+# Base: v1 balanced split (1,963 images)
+# Backgrounds: 398 authentic images (6 sessions + laptop stickers + floor clutter + bedroom)
+#
+# Train: 1,726 images (1,374 base + 352 BG, 20.4% BG)
+# Val:     356 images (  331 base +  25 BG,  7.0% BG)
+# Test:    279 images (  258 base +  21 BG,  7.5% BG)
+# Total: 2,361 images (100% Zero Session Leakage)
+
+path: C:/Users/admin/OneDrive/Desktop/ACS_KMUTT/GamiSenpai/data/origami_seg_v2_bg_balanced
+train: images/train
+val: images/val
+test: images/test
+
+nc: 6
+names: ['Chk1', 'Chk2', 'Chk3', 'Chk4', 'Chk5', 'Chk6']
