@@ -51,31 +51,31 @@ Open **`http://localhost:8000`** in your browser.
 ## System Architecture
 
 ```mermaid
-flowchart TD
+flowchart LR
     subgraph Browser["Client (Browser - TypeScript SPA)"]
         Cam["Webcam 1280x720"]
-        Engine["StepSessionEngine (Streak Gate x3)"]
-        Canvas["Canvas HUD Overlay (Polygon Renderer)"]
+        Engine["StepSessionEngine<br/>(Streak Gate x3)"]
+        Canvas["Canvas HUD Overlay<br/>(Polygon Renderer)"]
     end
 
     subgraph Backend["Backend Gateway (FastAPI)"]
         API["POST /api/predict"]
-        Registry["Figure Registry (configs/figures/*.json)"]
+        Registry["Figure Registry<br/>(configs/figures/*.json)"]
     end
 
     subgraph ML["ML Engine (Ultralytics PyTorch)"]
-        Verifier["YoloStepVerifier (YOLO11s-seg)"]
-        Gating["3-Tier Gating (Conf 55% | TopGap 8% | Area 1.5%)"]
+        Verifier["YoloStepVerifier<br/>(YOLO11s-seg)"]
+        Gating["3-Tier Gating<br/>(Conf 55% | Gap 8%)"]
     end
 
-    Cam -->|Frame Blob JPEG| Engine
-    Engine -->|POST Multipart| API
+    Cam -->|Frame Blob| Engine
+    Engine -->|POST JPEG| API
     API --> Registry
     Registry --> Verifier
     Verifier --> Gating
-    Gating -->|Prediction + Polygon Mask| API
+    Gating -->|Masks + Detections| API
     API -->|HTTP 200 JSON| Engine
-    Engine -->|Render Mask Overlay| Canvas
+    Engine -->|Draw Overlay| Canvas
 ```
 
 ### Verification & Gating Logic
