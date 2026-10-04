@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         celebrationSubtitle.textContent =
           step < total
             ? `เตรียมพบกับวิดีโอสอนขั้นตอนที่ ${step + 1} ใน 2 วินาที...`
-            : 'ยินดีด้วยครับ! ผลงานโอริกามิเสร็จสมบูรณ์แล้ว 🎉';
+            : 'ยินดีด้วยครับ! ผลงานโอริกามิเสร็จสมบูรณ์แล้ว';
       }
       if (celebrationModal) celebrationModal.classList.remove('hidden');
     },
@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (nextStep === null) {
         // Course completed
         if (completionTitle && currentFigureDetail) {
-          completionTitle.textContent = `ยินดีด้วยครับ! ${currentFigureDetail.title_th} เสร็จสมบูรณ์แล้ว 🪶`;
+          completionTitle.textContent = `ยินดีด้วยครับ! ${currentFigureDetail.title_th} เสร็จสมบูรณ์แล้ว`;
         }
         if (completionSubtitle && currentFigureDetail) {
           completionSubtitle.textContent = `คุณผ่านการพับ ${currentFigureDetail.title_th} ครบทั้ง ${currentFigureDetail.total_steps} ขั้นตอนด้วยความช่วยเหลือของ GamiSenpai`;

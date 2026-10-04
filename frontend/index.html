@@ -140,7 +140,10 @@
                         <div class="controls-wrapper">
                             <div class="verify-top-actions">
                                 <button id="btn-back-to-watch" class="btn secondary" type="button">← ขอดูคลิปสอนอีกรอบ</button>
-                                <button id="btn-camera-settings" class="btn secondary icon-btn" type="button" aria-expanded="false" title="การตั้งค่ากล้อง">⚙️ ตั้งค่ากล้อง</button>
+                                <button id="btn-camera-settings" class="btn secondary icon-btn" type="button" aria-expanded="false" title="การตั้งค่ากล้อง">
+                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                    <span>ตั้งค่ากล้อง</span>
+                                </button>
                             </div>
 
                             <div id="camera-settings-panel" class="camera-settings-panel hidden">
@@ -162,7 +165,7 @@
                                     <span id="roi-method-badge" class="roi-badge hidden">Auto-Crop</span>
                                 </div>
                                 <div id="camera-hint" class="camera-hint">
-                                    💡 เชื่อมต่อ Iriun Webcam บนมือถือหรือเว็บแคม และวางกระดาษให้อยู่กลางเฟรมภาพ
+                                    คำแนะนำ: เชื่อมต่อ Iriun Webcam บนมือถือหรือเว็บแคม และวางกระดาษให้อยู่กลางเฟรมภาพ
                                 </div>
                             </div>
 
@@ -201,17 +204,11 @@
                         </div>
                         <div class="fold-tips-container">
                             <div class="tip-card fold-tip">
-                                <div class="tip-title">
-                                    <span class="tip-icon">📐</span>
-                                    <span>วิธีพับ:</span>
-                                </div>
+                                <span class="tip-label">วิธีพับ</span>
                                 <p id="step-fold-tip">พับครึ่งทแยงมุมและแนวขนาน รีดรอยพับให้คมชัด แล้วยุบมุมเข้าหากันจนเป็นสี่เหลี่ยมจัตุรัสซ้อนกัน</p>
                             </div>
                             <div class="tip-card checkpoint-tip">
-                                <div class="tip-title">
-                                    <span class="tip-icon">🎯</span>
-                                    <span>จุดสังเกตเพื่อผ่านด่าน:</span>
-                                </div>
+                                <span class="tip-label">จุดสังเกตเพื่อผ่านด่าน</span>
                                 <p id="step-checkpoint-tip">วางชิ้นงานให้ปลายเปิดชี้เข้าหากล้อง ตรวจสอบให้สันพับทั้งสี่ด้านเรียบเสมอกัน</p>
                             </div>
                         </div>
@@ -278,8 +275,7 @@
                                 <span id="preview-meta-steps">6 ขั้นตอน</span>
                             </span>
                             <span class="meta-chip meta-chip-ai">
-                                <span class="ai-sparkle">✨</span>
-                                <span>AI ตรวจสอบทุกขั้นตอน</span>
+                                <span>ระบบตรวจเช็คอัตโนมัติ</span>
                             </span>
                         </div>
                     </div>
@@ -289,21 +285,21 @@
                     <h4 class="prep-checklist-title">สิ่งที่ควรเตรียมก่อนเริ่มพับ:</h4>
                     <div class="prep-grid">
                         <div class="prep-item">
-                            <span class="prep-icon">📄</span>
+                            <span class="prep-item-num">1</span>
                             <div>
                                 <strong>กระดาษโอริกามิ 1 แผ่น</strong>
                                 <p>สี่เหลี่ยมจัตุรัส แนะนำขนาด 15×15 ซม.</p>
                             </div>
                         </div>
                         <div class="prep-item">
-                            <span class="prep-icon">💡</span>
+                            <span class="prep-item-num">2</span>
                             <div>
                                 <strong>โต๊ะเรียบและแสงสว่าง</strong>
-                                <p>ช่วยให้ AI มองเห็นสันรอยพับได้ชัดเจน</p>
+                                <p>ช่วยให้ระบบตรวจจับรอยพับได้ชัดเจน</p>
                             </div>
                         </div>
                         <div class="prep-item">
-                            <span class="prep-icon">📷</span>
+                            <span class="prep-item-num">3</span>
                             <div>
                                 <strong>กล้องส่องมุมมองด้านบน</strong>
                                 <p>เว็บแคมหรือ Iriun Webcam บนมือถือ</p>
@@ -369,7 +365,7 @@
 
         <div id="app-toast" class="app-toast hidden" role="status" aria-live="polite">
             <div class="toast-content">
-                <span id="toast-icon" class="toast-icon">✨</span>
+                <span id="toast-icon" class="toast-icon"></span>
                 <span id="toast-message" class="toast-message"></span>
             </div>
         </div>

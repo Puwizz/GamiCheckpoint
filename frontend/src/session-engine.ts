@@ -271,7 +271,7 @@ export class StepSessionEngine {
           status: {
             kind: 'correct',
             icon: 'OK',
-            title: 'พับสำเร็จครบทุกขั้นตอนแล้ว! 🎉',
+            title: 'พับสำเร็จครบทุกขั้นตอนแล้ว',
             description: `ระบบตรวจพบความถูกต้องครบทั้ง ${this.totalSteps} ขั้นตอนเรียบร้อยแล้ว`,
           },
           confidence,
