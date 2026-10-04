@@ -880,11 +880,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (previewFigureSubtitle) {
-      previewFigureSubtitle.textContent = fig.subtitle || 'ORIGAMI STUDIO';
+      previewFigureSubtitle.remove();
     }
 
     if (previewFigureTitle) {
-      previewFigureTitle.textContent = `${fig.title_th} (${fig.title_en})`;
+      previewFigureTitle.textContent = fig.title_th;
     }
 
     if (previewFigureDesc) {
@@ -968,7 +968,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update Header Navigation UI
     if (btnBackToGallery) btnBackToGallery.classList.remove('hidden');
     if (workspaceFigureTag) workspaceFigureTag.textContent = `กำลังฝึกพับ: ${fig.title_th}`;
-    if (brandHeaderTag) brandHeaderTag.textContent = fig.subtitle || `${fig.title_en} · ORIGAMI STUDIO`;
+    if (brandHeaderTag) brandHeaderTag.textContent = 'ORIGAMI STUDIO';
 
     // Switch View
     viewGallery?.classList.add('hidden');
