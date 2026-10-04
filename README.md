@@ -110,6 +110,18 @@ Tested against 217 authentic hard-negative clutter frames (white laptop keyboard
 | **Clean Suppression Rate (Conf >= 0.25)** | **100.00%** (0 / 217) | Zero spurious bounding boxes at low confidence |
 | **Clean Suppression Rate (Conf >= 0.50)** | **100.00%** (0 / 217) | 100% immune to false checkpoint activations in real usage |
 
+### 3. Empirical Evidence & Benchmark Artifacts
+
+All empirical logs, evaluation reports, raw metrics, and training diagnostics are preserved under `docs/`:
+- **Comprehensive Benchmark Report:** [`docs/ORIGAMI_YOLO_RUN11_YOLO11S-SEG_V3_BG_BENCHMARK_REPORT.md`](docs/ORIGAMI_YOLO_RUN11_YOLO11S-SEG_V3_BG_BENCHMARK_REPORT.md)
+- **Raw Evaluation Metrics JSON:** [`docs/origami_yolo_run11_yolo11s-seg_v3_bg_metrics.json`](docs/origami_yolo_run11_yolo11s-seg_v3_bg_metrics.json)
+- **Zero-Leakage Session Audit History:** [`docs/DATASET_SPLIT_AND_LEAKAGE_HISTORY.md`](docs/DATASET_SPLIT_AND_LEAKAGE_HISTORY.md)
+- **Training Diagnostics & Visual Curves:**
+  - [Normalized Confusion Matrix](docs/assets/confusion_matrix_normalized.png)
+  - [Training Metrics & Loss Curves (50 Epochs)](docs/assets/results.png)
+  - [Mask Precision-Recall Curve](docs/assets/MaskPR_curve.png)
+  - [Sample Milestone Validation Predictions](docs/assets/val_batch0_pred.jpg)
+
 ---
 
 ## Operational Scope & Out-of-Distribution Defense
@@ -166,3 +178,6 @@ GamiSenpai/
 
 ---
 
+## License & Affiliation
+
+Department of Applied Computer Science (ACS), King Mongkut's University of Technology Thonburi (KMUTT).

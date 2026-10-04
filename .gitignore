@@ -79,6 +79,7 @@ data/*.zip
 !frontend/public/videos/*.mp4
 !data/samples/*.png
 !checkpoints/*.png
+!docs/assets/*
 
 # === Models & Checkpoints ===
 weights/*.pt
@@ -117,9 +118,9 @@ scripts/yolo/generate_seg_dataset.py
 
 # === Documentation & Workflow ===
 PROJECT_STATUS.md
-docs/
 AI_WORKFLOW.md
 *AI_WORKFLOW*.md
+docs/archive/
 
 # === Misc ===
 *.log
