@@ -68,6 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const roiMethodBadge = document.getElementById('roi-method-badge');
 
   const btnBackToWatch = document.getElementById('btn-back-to-watch') as HTMLButtonElement | null;
+  const btnCameraSettings = document.getElementById('btn-camera-settings') as HTMLButtonElement | null;
+  const cameraSettingsPanel = document.getElementById('camera-settings-panel');
   const btnStart = document.getElementById('btn-start') as HTMLButtonElement | null;
   const btnStop = document.getElementById('btn-stop') as HTMLButtonElement | null;
   const btnRefreshCameras = document.getElementById('btn-refresh-cameras') as HTMLButtonElement | null;
@@ -77,6 +79,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- DOM Elements: Escape Hatch & Modals ---
   const escapeHatchBanner = document.getElementById('escape-hatch-banner');
   const btnSkipStep = document.getElementById('btn-skip-step') as HTMLButtonElement | null;
+
+  const figurePreviewModal = document.getElementById('figure-preview-modal');
+  const btnClosePreviewModal = document.getElementById('btn-close-preview-modal') as HTMLButtonElement | null;
+  const previewFigureImg = document.getElementById('preview-figure-img') as HTMLImageElement | null;
+  const previewDifficultyBadge = document.getElementById('preview-difficulty-badge');
+  const previewFigureSubtitle = document.getElementById('preview-figure-subtitle');
+  const previewFigureTitle = document.getElementById('preview-figure-title');
+  const previewFigureDesc = document.getElementById('preview-figure-desc');
+  const previewMetaTime = document.getElementById('preview-meta-time');
+  const previewMetaSteps = document.getElementById('preview-meta-steps');
+  const previewProgressSummary = document.getElementById('preview-progress-summary');
+  const previewProgressText = document.getElementById('preview-progress-text');
+  const previewProgressFill = document.getElementById('preview-progress-fill');
+  const btnPreviewStart = document.getElementById('btn-preview-start') as HTMLButtonElement | null;
+  const btnPreviewRestart = document.getElementById('btn-preview-restart') as HTMLButtonElement | null;
 
   const celebrationModal = document.getElementById('celebration-modal');
   const celebrationTitle = document.getElementById('celebration-title');
@@ -90,11 +107,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- DOM Elements: Right Panel (Info & Status) ---
   const btnReset = document.getElementById('btn-reset') as HTMLButtonElement | null;
   const resultDisplay = document.getElementById('result-display');
+  const streakBarContainer = document.getElementById('streak-bar-container');
+  const streakBarFill = document.getElementById('streak-bar-fill');
   const lblCurrentStep = document.getElementById('lbl-current-step');
   const lblStep = document.getElementById('lbl-step');
   const lblConfidence = document.getElementById('lbl-confidence');
   const senpaiTip = document.getElementById('senpai-tip');
+  const currentStepCounter = document.getElementById('current-step-counter');
   const currentStepTitle = document.getElementById('current-step-title');
+  const stepFoldTip = document.getElementById('step-fold-tip');
+  const stepCheckpointTip = document.getElementById('step-checkpoint-tip');
   const stepProgress = document.getElementById('step-progress');
   const referenceStepTitle = document.getElementById('reference-step-title');
   const referenceStepDescription = document.getElementById('reference-step-description');
@@ -151,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
       stopCamera();
       const total = tutor.getTotalSteps();
       if (celebrationTitle) {
-        celebrationTitle.textContent = `ยอดเยี่ยมมาก! Step ${step} ผ่านเรียบร้อย`;
+        celebrationTitle.textContent = `ยอดเยี่ยมมาก! ขั้นตอนที่ ${step} ผ่านเรียบร้อย`;
       }
       if (celebrationSubtitle) {
         celebrationSubtitle.textContent =
@@ -211,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- UI Helper Functions ---
-  function setStatusBox(status: UIStatusState): void {
+  function setStatusBox(status: UIStatusState, streak: number = 0): void {
     if (!resultDisplay) return;
     const statusIcon = resultDisplay.querySelector('.status-icon');
     const statusTitle = resultDisplay.querySelector('.status-text h3') as HTMLElement | null;
@@ -222,9 +244,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (statusTitle) {
       statusTitle.textContent = status.title;
       statusTitle.style.color =
-        status.kind === 'correct' ? 'var(--success)' : status.kind === 'incorrect' ? 'var(--danger)' : '';
+        status.kind === 'correct' ? 'var(--color-bamboo)' : status.kind === 'incorrect' ? 'var(--color-accent)' : '';
     }
     if (statusDesc) statusDesc.textContent = status.description;
+
+    if (streakBarContainer && streakBarFill) {
+      if (streak > 0 && status.kind !== 'incorrect') {
+        streakBarContainer.classList.remove('hidden');
+        const percent = Math.min(100, Math.round((streak / 3) * 100));
+        streakBarFill.style.width = `${percent}%`;
+      } else {
+        streakBarContainer.classList.add('hidden');
+        streakBarFill.style.width = '0%';
+      }
+    }
   }
 
   function setCameraHint(message: string, variant: 'info' | 'success' | 'warning' = 'info'): void {
@@ -243,23 +276,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const stepNumber = index + 1;
       const item = document.createElement('div');
       item.className = 'step-pill';
-      let stateLabel = 'Locked';
+      let stateLabel = 'รอดำเนินการ';
 
       if (tutor.isStepCompleted(stepNumber)) {
         item.classList.add('done');
-        stateLabel = 'Matched';
+        stateLabel = 'ผ่านแล้ว';
       } else if (stepNumber === current) {
         item.classList.add('active');
-        stateLabel = tutor.getMode() === 'watch' ? 'Learning' : 'Checking';
+        stateLabel = tutor.getMode() === 'watch' ? 'กำลังดูวิธีพับ' : 'กำลังตรวจ';
       } else {
         item.classList.add('locked');
       }
 
-      item.setAttribute('aria-label', `Step ${stepNumber}: ${g.name} — ${stateLabel}`);
+      const stepDisplayName = g.thaiName || g.name;
+      item.setAttribute('aria-label', `ขั้นตอนที่ ${stepNumber}: ${stepDisplayName} — ${stateLabel}`);
       item.innerHTML = `
         <span class="step-index">${stepNumber}</span>
         <span class="step-content">
-            <span class="step-name">${g.name}</span>
+            <span class="step-name">${stepDisplayName}</span>
             <span class="step-state">${stateLabel}</span>
         </span>
       `;
@@ -276,15 +310,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (lblCurrentStep) {
       lblCurrentStep.textContent = currentStep <= total ? `Step ${currentStep}` : 'Complete';
     }
+    if (currentStepCounter) {
+      currentStepCounter.textContent =
+        currentStep <= total ? `ขั้นตอนที่ ${currentStep} จาก ${total}` : 'พับสำเร็จครบทุกขั้นตอน!';
+    }
     if (currentStepTitle) {
       currentStepTitle.textContent = guide
-        ? `Step ${currentStep}: ${guide.thaiName}`
-        : 'All checkpoints complete';
+        ? guide.thaiName || guide.name
+        : 'เสร็จสมบูรณ์ทุกขั้นตอน';
+    }
+    if (stepFoldTip) {
+      stepFoldTip.textContent = guide?.foldTip || 'ไม่มีคำแนะนำเพิ่มเติมในขั้นตอนนี้';
+    }
+    if (stepCheckpointTip) {
+      stepCheckpointTip.textContent = guide?.checkPointTip || 'วางชิ้นงานให้ตรงกับหน้ากล้อง';
     }
     if (senpaiTip) {
       senpaiTip.textContent = guide
         ? `${guide.foldTip} — จุดสังเกต: ${guide.checkPointTip}`
-        : 'All checkpoints matched. Nice work.';
+        : 'เสร็จสมบูรณ์ทุกขั้นตอน';
     }
 
     if (currentDef) {
@@ -292,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (referenceStepDescription) referenceStepDescription.textContent = currentDef.reference;
       if (stepReferenceImage) {
         stepReferenceImage.src = guide?.fallbackImageUrl || `/references/step-${currentStep}.png`;
-        stepReferenceImage.alt = `Reference shape for Step ${currentStep}: ${currentDef.name}`;
+        stepReferenceImage.alt = `รูปทรงเป้าหมายขั้นตอนที่ ${currentStep}: ${guide?.thaiName || currentDef.name}`;
       }
     }
 
@@ -443,8 +487,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (cameraSelect) cameraSelect.disabled = true;
       if (btnRefreshCameras) btnRefreshCameras.disabled = true;
 
-      const selectedLabel = cameraSelect?.options[cameraSelect.selectedIndex]?.text || 'selected camera';
-      setCameraHint(`Streaming from ${selectedLabel}. If this is not Iriun, stop camera and choose another.`, 'success');
+      const selectedLabel = cameraSelect?.options[cameraSelect.selectedIndex]?.text || 'กล้องที่เลือก';
+      setCameraHint(`กำลังสตรีมภาพจาก: ${selectedLabel}`, 'success');
 
       if (intervalId !== null) clearInterval(intervalId);
       intervalId = window.setInterval(captureAndPredict, PREDICT_INTERVAL_MS);
@@ -595,18 +639,18 @@ document.addEventListener('DOMContentLoaded', () => {
           break;
 
         case 'CONFIRMING':
-          setStatusBox(action.status);
+          setStatusBox(action.status, action.streak);
           hudOverlay.updateFromAPI(data, reqStep, 'tracking', `${action.streak}/3`);
           break;
 
         case 'MATCH_SUCCESS':
-          setStatusBox(action.status);
+          setStatusBox(action.status, 3);
           hudOverlay.updateFromAPI(data, reqStep, 'matched', 'PASS');
           tutor.handleStepVerified(action.finishedStep);
           break;
 
         case 'ALL_COMPLETE':
-          setStatusBox(action.status);
+          setStatusBox(action.status, 3);
           hudOverlay.updateFromAPI(data, reqStep, 'matched', 'COMPLETE');
           tutor.handleStepVerified(total);
           break;
@@ -813,11 +857,86 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch(`/api/figures/${figureId}`);
       if (!res.ok) throw new Error('Figure not found');
       const detail: OrigamiFigureDetail = await res.json();
-      enterFigureWorkspace(detail);
+      openFigurePreviewModal(detail);
     } catch (e) {
       console.error('Failed to load figure detail:', e);
       showToast('warning', 'เกิดข้อผิดพลาดในการโหลดข้อมูลตัวพับ กรุณาลองใหม่อีกครั้ง');
     }
+  }
+
+  function openFigurePreviewModal(fig: OrigamiFigureDetail): void {
+    if (!figurePreviewModal) return;
+
+    if (previewFigureImg) {
+      previewFigureImg.src = fig.thumbnail;
+      previewFigureImg.alt = fig.title_th;
+    }
+
+    if (previewDifficultyBadge) {
+      const diffLevel = fig.difficulty_level || (fig.difficulty === 'ระดับง่าย' ? 1 : fig.difficulty === 'ระดับกลาง' ? 2 : 3);
+      const diffDots = diffLevel === 1 ? '●○○' : diffLevel === 2 ? '●●○' : '●●●';
+      previewDifficultyBadge.className = `difficulty-badge diff-lvl-${diffLevel}`;
+      previewDifficultyBadge.textContent = `${fig.difficulty} ${diffDots}`;
+    }
+
+    if (previewFigureSubtitle) {
+      previewFigureSubtitle.textContent = fig.subtitle || 'ORIGAMI STUDIO';
+    }
+
+    if (previewFigureTitle) {
+      previewFigureTitle.textContent = `${fig.title_th} (${fig.title_en})`;
+    }
+
+    if (previewFigureDesc) {
+      previewFigureDesc.textContent = fig.description_th;
+    }
+
+    if (previewMetaTime) {
+      previewMetaTime.textContent = `~${fig.estimated_minutes} นาที`;
+    }
+
+    if (previewMetaSteps) {
+      previewMetaSteps.textContent = `${fig.total_steps} ขั้นตอน`;
+    }
+
+    const progress = getStoredProgress(fig.id, fig.total_steps);
+    const hasProgress = progress.completedCount > 0 && progress.percent < 100;
+
+    if (hasProgress && previewProgressSummary && previewProgressText && previewProgressFill) {
+      previewProgressSummary.classList.remove('hidden');
+      previewProgressText.textContent = `ผ่านแล้ว ${progress.completedCount}/${fig.total_steps} ขั้นตอน (${progress.percent}%)`;
+      previewProgressFill.style.width = `${progress.percent}%`;
+    } else if (previewProgressSummary) {
+      previewProgressSummary.classList.add('hidden');
+    }
+
+    if (btnPreviewStart) {
+      const arrowSvg = `<svg class="btn-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+      const startText = hasProgress
+        ? `ฝึกพับต่อจากเดิม (ขั้นตอนที่ ${progress.currentStep})`
+        : 'เริ่มฝึกพับกระดาษ';
+      btnPreviewStart.innerHTML = `<span>${startText}</span> ${arrowSvg}`;
+
+      btnPreviewStart.onclick = () => {
+        closeFigurePreviewModal();
+        enterFigureWorkspace(fig);
+      };
+    }
+
+    if (btnPreviewRestart) {
+      btnPreviewRestart.classList.toggle('hidden', !hasProgress);
+      btnPreviewRestart.onclick = () => {
+        localStorage.removeItem(`gamisenpai_progress_${fig.id}`);
+        closeFigurePreviewModal();
+        enterFigureWorkspace(fig);
+      };
+    }
+
+    figurePreviewModal.classList.remove('hidden');
+  }
+
+  function closeFigurePreviewModal(): void {
+    figurePreviewModal?.classList.add('hidden');
   }
 
   function enterFigureWorkspace(fig: OrigamiFigureDetail): void {
@@ -931,7 +1050,13 @@ document.addEventListener('DOMContentLoaded', () => {
     btnVideoMute.textContent = tutorialVideo.muted ? 'ปิดเสียง' : 'เปิดเสียง';
   });
 
-  // Camera toolbar
+  // Camera toolbar & settings
+  btnCameraSettings?.addEventListener('click', () => {
+    if (!cameraSettingsPanel) return;
+    const isHidden = cameraSettingsPanel.classList.toggle('hidden');
+    btnCameraSettings.setAttribute('aria-expanded', (!isHidden).toString());
+  });
+
   btnStart?.addEventListener('click', startCamera);
   btnStop?.addEventListener('click', stopCamera);
   btnRefreshCameras?.addEventListener('click', refreshCameraList);
@@ -947,13 +1072,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Figure preview modal events
+  btnClosePreviewModal?.addEventListener('click', closeFigurePreviewModal);
+  figurePreviewModal?.addEventListener('click', (e) => {
+    if (e.target === figurePreviewModal) {
+      closeFigurePreviewModal();
+    }
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (figurePreviewModal && !figurePreviewModal.classList.contains('hidden')) {
+        closeFigurePreviewModal();
+      }
+    }
+  });
+
   // Escape hatch & reset
   btnSkipStep?.addEventListener('click', () => {
     tutor.skipCurrentStep();
   });
 
   btnReset?.addEventListener('click', () => {
-    if (confirm('ต้องการรีเซ็ตความคืบหน้าเพื่อเริ่มพับ Step 1 ใหม่หรือไม่?')) {
+    if (confirm('ต้องการเริ่มต้นฝึกพับใหม่ตั้งแต่ขั้นตอนที่ 1 หรือไม่?')) {
       tutor.resetProgress();
       stopCamera();
     }

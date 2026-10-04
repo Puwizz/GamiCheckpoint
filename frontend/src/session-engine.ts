@@ -204,8 +204,8 @@ export class StepSessionEngine {
           status: {
             kind: 'waiting',
             icon: '...',
-            title: `กำลังเข้าสู่ Step ${this.currentStep}`,
-            description: `พับต่อจาก Step ${detectedStep} ตามตัวอย่างด้านขวาเพื่อเข้าสู่ Step ${this.currentStep}: ${this.steps[this.currentStep - 1]?.name || ''}`,
+            title: `กำลังเข้าสู่ขั้นตอนที่ ${this.currentStep}`,
+            description: `พับต่อจากขั้นตอนที่ ${detectedStep} ตามตัวอย่างด้านขวาเพื่อเข้าสู่ขั้นตอนที่ ${this.currentStep}: ${this.steps[this.currentStep - 1]?.name || ''}`,
           },
           tip: this.steps[this.currentStep - 1]?.tip || '',
           detectedStep,
@@ -221,12 +221,12 @@ export class StepSessionEngine {
         status: {
           kind: 'incorrect',
           icon: 'LOCK',
-          title: direction === 'ahead' ? `Step ${detectedStep} ยังไม่ปลดล็อก` : `ย้อนกลับมาที่ Step ${this.currentStep}`,
-          description: `AI ตรวจพบ Step ${detectedStep} แต่ขั้นตอนปัจจุบันคือ Step ${this.currentStep}: ${this.steps[this.currentStep - 1]?.name || ''}`,
+          title: direction === 'ahead' ? `ขั้นตอนที่ ${detectedStep} ยังไม่ปลดล็อก` : `ย้อนกลับมาขั้นตอนที่ ${this.currentStep}`,
+          description: `AI ตรวจพบขั้นตอนที่ ${detectedStep} แต่ขั้นตอนปัจจุบันคือ ${this.steps[this.currentStep - 1]?.name || `ขั้นตอนที่ ${this.currentStep}`}`,
         },
         tip: direction === 'ahead'
-          ? `อย่าเพิ่งข้ามขั้นตอนครับ ทำให้ผ่าน Step ${this.currentStep} ก่อน แล้ว Step ${detectedStep} จะปลดล็อกเอง`
-          : `Step ${detectedStep} ผ่านไปแล้วครับ กรุณาทำขั้นตอนปัจจุบัน Step ${this.currentStep}`,
+          ? `อย่าเพิ่งข้ามขั้นตอนครับ ทำให้ผ่านขั้นตอนที่ ${this.currentStep} ก่อน แล้วขั้นตอนที่ ${detectedStep} จะปลดล็อกเอง`
+          : `ขั้นตอนที่ ${detectedStep} ผ่านไปแล้วครับ กรุณาทำขั้นตอนปัจจุบันที่ ${this.currentStep}`,
         detectedStep,
         confidence,
         overlayState: 'locked',
@@ -248,8 +248,8 @@ export class StepSessionEngine {
           status: {
             kind: 'waiting',
             icon: 'WAIT',
-            title: `ตรวจพบ Step ${this.currentStep} แล้ว แต่ความชัดเจนยังน้อยไป`,
-            description: `ความมั่นใจ ${confidence.toFixed(1)}%, top-gap ${topGap.toFixed(1)}% กรุณาถือกระดาษให้อยู่กลางกล้องและนิ่งขึ้นอีกนิด`,
+            title: `ตรวจพบขั้นตอนที่ ${this.currentStep} แล้ว แต่ความชัดเจนยังน้อยไป`,
+            description: `ความมั่นใจ ${confidence.toFixed(1)}%, กรุณาถือกระดาษให้อยู่กลางกล้องและนิ่งขึ้นอีกนิด`,
           },
           detectedStep,
           confidence,
@@ -271,8 +271,8 @@ export class StepSessionEngine {
           status: {
             kind: 'correct',
             icon: 'OK',
-            title: 'All steps matched!',
-            description: `The model detected all ${this.totalSteps} checkpoints in order.`,
+            title: 'พับสำเร็จครบทุกขั้นตอนแล้ว! 🎉',
+            description: `ระบบตรวจพบความถูกต้องครบทั้ง ${this.totalSteps} ขั้นตอนเรียบร้อยแล้ว`,
           },
           confidence,
         };
@@ -283,8 +283,8 @@ export class StepSessionEngine {
         status: {
           kind: 'correct',
           icon: 'OK',
-          title: `Step ${finished} matched`,
-          description: `Unlocking Step ${next} next.`,
+          title: `ขั้นตอนที่ ${finished} ถูกต้องเรียบร้อย!`,
+          description: `กำลังนำท่านเข้าสู่วิดีโอสอนขั้นตอนที่ ${next}...`,
         },
         finishedStep: finished,
         nextStep: next,
@@ -298,8 +298,8 @@ export class StepSessionEngine {
       status: {
         kind: 'waiting',
         icon: '...',
-        title: `กำลังยืนยัน Step ${this.currentStep} (${this.stepStreak}/${MATCH_STREAK_REQUIRED})`,
-        description: 'ถือท่าทางนี้ไว้นิ่งๆ เพื่อยืนยันขั้นตอน',
+        title: `กำลังตรวจความถูกต้อง (${this.stepStreak}/${MATCH_STREAK_REQUIRED})`,
+        description: 'ถือชิ้นงานท่านี้ไว้นิ่งๆ เพื่อให้ระบบยืนยันผล',
       },
       detectedStep,
       confidence,
@@ -328,8 +328,8 @@ export class StepSessionEngine {
       return {
         kind: 'waiting',
         icon: '--',
-        title: 'ยังไม่ใช่ทรงสี่เหลี่ยมจัตุรัส',
-        description: 'Step 1 ต้องเป็นรูปสี่เหลี่ยมจัตุรัสที่พับประกบกันเรียบร้อย (Square Base)',
+        title: 'ยังไม่ใช่ทรงฐานสี่เหลี่ยม',
+        description: 'ขั้นตอนที่ 1 ต้องพับประกบมุมเป็นรูปสี่เหลี่ยมจัตุรัสซ้อนกัน (Square Base)',
       };
     }
 
@@ -354,8 +354,8 @@ export class StepSessionEngine {
     return {
       kind: 'waiting',
       icon: '...',
-      title: 'กำลังจัดท่าทาง...',
-      description: 'แสดงหนึ่งในขั้นตอนการพับนกให้อยู่ตรงกลางกรอบภาพ',
+      title: 'กำลังจัดตำแหน่งชิ้นงาน...',
+      description: 'แสดงกระดาษที่พับเสร็จให้อยู่ตรงกลางกรอบภาพ',
     };
   }
 }
