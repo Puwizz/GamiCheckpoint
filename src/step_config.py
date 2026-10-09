@@ -30,10 +30,15 @@ STEP_NAMES = {
 }
 
 
-def step_number(class_name):
-    """Return the numeric step for a validated class name (0 for Non-Origami, 1-6 for steps)."""
-    if class_name not in STEP_CLASSES:
-        raise ValueError(f"Unsupported step class: {class_name!r}")
+def step_number(class_name: str) -> int:
+    """Return the numeric step for a validated class name (0 for Non-Origami, 1..N for origami steps)."""
+    if not isinstance(class_name, str) or not class_name:
+        raise ValueError(f"Invalid step class: {class_name!r}")
     if class_name == "Chk0_NonOrigami":
         return 0
-    return int(class_name.removeprefix("Chk"))
+    if not class_name.startswith("Chk"):
+        raise ValueError(f"Unsupported step class: {class_name!r}")
+    digits = class_name[3:]
+    if not digits.isdigit():
+        raise ValueError(f"Unsupported step class: {class_name!r}")
+    return int(digits)
