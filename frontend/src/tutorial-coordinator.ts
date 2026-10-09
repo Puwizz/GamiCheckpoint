@@ -248,6 +248,8 @@ export class TutorialCoordinator {
         this.onCelebrationEnd?.(nextStep);
       } else {
         // Final completion!
+        this.currentStep = this.totalSteps + 1;
+        this.saveProgress();
         this.onCelebrationEnd?.(null);
       }
     }, this.celebrationMs);
@@ -255,12 +257,15 @@ export class TutorialCoordinator {
 
   public skipCurrentStep(): void {
     this.clearEscapeHatchTimer();
-    this.completedSteps.add(this.currentStep);
-    this.saveProgress();
+    const finalStep = this.currentStep;
+    this.completedSteps.add(finalStep);
 
     if (this.currentStep < this.totalSteps) {
       this.setStep(this.currentStep + 1, true);
     } else {
+      this.currentStep = this.totalSteps + 1;
+      this.saveProgress();
+      this.onCelebrationStart?.(finalStep);
       this.onCelebrationEnd?.(null);
     }
   }

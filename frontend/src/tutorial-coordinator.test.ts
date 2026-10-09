@@ -127,4 +127,47 @@ describe('TutorialCoordinator', () => {
     expect(isLooping).toBe(false);
     expect(loopSpy).toHaveBeenCalledWith(false);
   });
+
+  it('handles final step skip: marks final step completed, advances step count, and triggers celebration/completion callbacks (FE-02)', () => {
+    const celebrationStartSpy = vi.fn();
+    const celebrationEndSpy = vi.fn();
+    const escapeHatchSpy = vi.fn();
+
+    const coordinator = new TutorialCoordinator({
+      totalSteps: 6,
+      onCelebrationStart: celebrationStartSpy,
+      onCelebrationEnd: celebrationEndSpy,
+      onEscapeHatch: escapeHatchSpy,
+    });
+
+    coordinator.setStep(6);
+    coordinator.enterVerifyMode();
+
+    coordinator.skipCurrentStep();
+
+    expect(coordinator.isStepCompleted(6)).toBe(true);
+    expect(coordinator.getCurrentStep()).toBe(7); // totalSteps + 1 indicates completed state
+    expect(celebrationStartSpy).toHaveBeenCalledWith(6);
+    expect(celebrationEndSpy).toHaveBeenCalledWith(null);
+    expect(coordinator.getIsEscapeHatchActive()).toBe(false);
+  });
+
+  it('handles final step verification: advances step to totalSteps + 1 upon completion', () => {
+    const celebrationEndSpy = vi.fn();
+    const coordinator = new TutorialCoordinator({
+      totalSteps: 6,
+      celebrationMs: 500,
+      onCelebrationEnd: celebrationEndSpy,
+    });
+
+    coordinator.setStep(6);
+    coordinator.enterVerifyMode();
+    coordinator.handleStepVerified(6);
+
+    vi.advanceTimersByTime(501);
+
+    expect(coordinator.isStepCompleted(6)).toBe(true);
+    expect(coordinator.getCurrentStep()).toBe(7);
+    expect(celebrationEndSpy).toHaveBeenCalledWith(null);
+  });
 });

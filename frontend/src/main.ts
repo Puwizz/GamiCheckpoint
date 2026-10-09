@@ -186,7 +186,10 @@ document.addEventListener('DOMContentLoaded', () => {
     onCelebrationEnd: (nextStep: number | null) => {
       if (celebrationModal) celebrationModal.classList.add('hidden');
       if (nextStep === null) {
-        // Course completed
+        // Course completed: ensure camera stops and background polling terminates
+        stopCamera();
+        sessionEngine.setStep(tutor.getTotalSteps() + 1, tutor.getCompletedSteps());
+
         if (completionTitle && currentFigureDetail) {
           completionTitle.textContent = `ยินดีด้วยครับ! ${currentFigureDetail.title_th} เสร็จสมบูรณ์แล้ว`;
         }
