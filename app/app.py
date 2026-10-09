@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, UploadFile, Query, Path, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 from figure_registry import registry
@@ -128,7 +129,7 @@ async def predict_frame(
         return JSONResponse(status_code=503, content={"error": f"Model for '{figure}' is not loaded yet."})
 
     try:
-        result = target_verifier.verify_bytes(contents)
+        result = await run_in_threadpool(target_verifier.verify_bytes, contents)
         return result.to_dict()
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": f"Invalid image format: {str(e)}"})
