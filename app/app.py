@@ -29,8 +29,12 @@ class AppState:
     def load(self):
         self.registry.load()
         print(f"[INFO] Loaded {len(self.registry)} origami figure specifications: {list(self.registry.keys())}")
-        verifier = self.registry.get_verifier("crane", device=str(DEVICE))
-        self.verifiers["crane"] = verifier
+        try:
+            verifier = self.registry.get_verifier("crane", device=str(DEVICE))
+            self.verifiers["crane"] = verifier
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize default verifier on startup: {e}")
+            self.verifiers["crane"] = None
 
     def get_verifier(self, figure_id: str):
         return self.verifiers.get(figure_id)

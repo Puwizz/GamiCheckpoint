@@ -146,3 +146,13 @@ def test_cors_preflight_options(client):
     assert response.status_code == 200
     assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
     assert "POST" in response.headers.get("access-control-allow-methods", "")
+
+
+def test_predict_model_not_loaded_503(client, monkeypatch):
+    monkeypatch.setattr(app_module.state, "verifiers", {"crane": None})
+    response = client.post(
+        "/api/predict?figure=crane",
+        files={"file": ("test.jpg", b"valid_image_bytes", "image/jpeg")},
+    )
+    assert response.status_code == 503
+    assert "not loaded yet" in response.json()["error"].lower()
