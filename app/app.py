@@ -131,19 +131,28 @@ async def predict_frame(
             content={"error": f"Unsupported media type '{file.content_type}'. Allowed types: {sorted(list(ALLOWED_IMAGE_TYPES))}"},
         )
 
+    contents = bytearray()
+    chunk_size = 64 * 1024
     try:
-        contents = await file.read()
+        while True:
+            chunk = await file.read(chunk_size)
+            if not chunk:
+                break
+            contents.extend(chunk)
+            if len(contents) > MAX_UPLOAD_SIZE:
+                return JSONResponse(
+                    status_code=413,
+                    content={"error": f"File size exceeds maximum allowed limit of {MAX_UPLOAD_SIZE // (1024 * 1024)}MB."},
+                )
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": f"Failed to read uploaded file: {str(e)}"})
+    finally:
+        await file.close()
 
-    if not contents or len(contents) == 0:
+    if len(contents) == 0:
         return JSONResponse(status_code=400, content={"error": "Uploaded image file is empty."})
 
-    if len(contents) > MAX_UPLOAD_SIZE:
-        return JSONResponse(
-            status_code=413,
-            content={"error": f"File size exceeds maximum allowed limit of {MAX_UPLOAD_SIZE // (1024 * 1024)}MB."},
-        )
+    contents = bytes(contents)
 
     target_verifier = state.get_verifier(figure)
     if not target_verifier:
