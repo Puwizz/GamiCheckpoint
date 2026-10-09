@@ -93,3 +93,37 @@ def test_figure_registry_get_verifier_handles_exception(monkeypatch):
     # Must return None gracefully instead of raising unhandled exception
     verifier = reg.get_verifier("crane")
     assert verifier is None
+
+
+def test_figure_registry_list_summaries_with_none_difficulty_level(tmp_path):
+    """CORE-11: Verify that difficulty_level=None (null in JSON) does not raise TypeError on sort."""
+    fig1 = {
+        "id": "lotus",
+        "title_en": "Lotus",
+        "title_th": "ดอกบัว",
+        "status": "available",
+        "difficulty_level": None,  # null in JSON
+        "steps": [{"step_number": 1, "class_name": "Chk1"}],
+    }
+    fig2 = {
+        "id": "rose",
+        "title_en": "Rose",
+        "title_th": "ดอกกุหลาบ",
+        "status": "available",
+        "difficulty_level": 2,
+        "steps": [{"step_number": 1, "class_name": "Chk1"}],
+    }
+    with open(tmp_path / "lotus.json", "w", encoding="utf-8") as f:
+        json.dump(fig1, f)
+    with open(tmp_path / "rose.json", "w", encoding="utf-8") as f:
+        json.dump(fig2, f)
+
+    reg = FigureRegistry(configs_dir=str(tmp_path))
+    summaries = reg.list_summaries()
+    assert len(summaries) == 2
+    # Verify sorting succeeds without TypeError and lotus (fallback 1) sorts before rose (2)
+    assert summaries[0]["id"] == "lotus"
+    assert summaries[0]["difficulty_level"] == 1
+    assert summaries[1]["id"] == "rose"
+    assert summaries[1]["difficulty_level"] == 2
+
