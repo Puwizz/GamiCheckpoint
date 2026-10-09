@@ -73,7 +73,10 @@ def split_dataset(source_dir, output_dir, train_ratio=0.8, seed=42):
         random.shuffle(images)
 
         # แบ่ง train/val
-        split_idx = int(len(images) * train_ratio)
+        if train_ratio > 0.0 and len(images) > 0:
+            split_idx = max(1, int(len(images) * train_ratio))
+        else:
+            split_idx = int(len(images) * train_ratio)
         train_images = images[:split_idx]
         val_images = images[split_idx:]
 
