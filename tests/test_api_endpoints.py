@@ -98,6 +98,27 @@ def test_predict_payload_too_large(client):
     assert "exceeds maximum allowed limit" in response.json()["error"].lower()
 
 
+def test_predict_streaming_closes_file(client, monkeypatch):
+    closed = False
+
+    from starlette.datastructures import UploadFile
+
+    orig_close = UploadFile.close
+
+    async def mock_close(self):
+        nonlocal closed
+        closed = True
+        return await orig_close(self)
+
+    monkeypatch.setattr(UploadFile, "close", mock_close)
+
+    response = client.post(
+        "/api/predict?figure=crane",
+        files={"file": ("test.jpg", b"dummy_content", "image/jpeg")},
+    )
+    assert closed is True
+
+
 def test_predict_invalid_query_pattern(client):
     response = client.post(
         "/api/predict?figure=bad!figure@name",
