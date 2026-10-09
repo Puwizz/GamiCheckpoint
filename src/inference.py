@@ -37,7 +37,17 @@ def assess_frame_readiness(frame_bgr: np.ndarray) -> Tuple[bool, str, Dict[str, 
     if frame_bgr is None or frame_bgr.size == 0:
         return False, "empty_frame", {"mean_luma": 0.0, "contrast": 0.0, "dark_ratio": 1.0}
 
-    gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+    if frame_bgr.ndim == 2:
+        gray = frame_bgr
+    elif frame_bgr.ndim == 3 and frame_bgr.shape[2] == 1:
+        gray = frame_bgr.squeeze(2)
+    elif frame_bgr.ndim == 3 and frame_bgr.shape[2] == 3:
+        gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+    elif frame_bgr.ndim == 3 and frame_bgr.shape[2] == 4:
+        gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGRA2GRAY)
+    else:
+        return False, "invalid_frame_format", {"mean_luma": 0.0, "contrast": 0.0, "dark_ratio": 1.0}
+
     mean_luma = float(np.mean(gray))
     contrast = float(np.std(gray))
     dark_ratio = float(np.mean(gray < 25))
@@ -194,6 +204,14 @@ class StepVerifier:
 
         if self.detector is None:
             raise RuntimeError("StepVerifier has no detector adapter configured.")
+
+        # Normalize 2D or 4-channel frames to 3-channel BGR for detector
+        if frame_bgr.ndim == 2:
+            frame_bgr = cv2.cvtColor(frame_bgr, cv2.COLOR_GRAY2BGR)
+        elif frame_bgr.ndim == 3 and frame_bgr.shape[2] == 1:
+            frame_bgr = cv2.cvtColor(frame_bgr, cv2.COLOR_GRAY2BGR)
+        elif frame_bgr.ndim == 3 and frame_bgr.shape[2] == 4:
+            frame_bgr = cv2.cvtColor(frame_bgr, cv2.COLOR_BGRA2BGR)
 
         detections = self.detector.detect(frame_bgr, imgsz=self.imgsz)
         h, w = frame_bgr.shape[:2]

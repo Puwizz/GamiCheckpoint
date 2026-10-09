@@ -30,6 +30,8 @@ class AutoCropForeground(object):
         self.margin_ratio = margin_ratio
 
     def __call__(self, img):
+        if hasattr(img, "mode") and img.mode != "RGB":
+            img = img.convert("RGB")
         # Convert PIL (RGB) -> OpenCV (BGR)
         cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
         
