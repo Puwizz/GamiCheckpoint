@@ -1,4 +1,4 @@
-﻿"""
+"""
 visualization.py — Pipeline Visual Inspection & Error Analysis
 ==============================================================
 Module for rendering and saving:
@@ -48,17 +48,16 @@ def save_train_samples_grid(dataset, output_path, classes=STEP_CLASSES, samples_
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(num_cols * 3.6, num_rows * 3.4))
     fig.suptitle("Training Input Sanity Check (AutoCrop + Augmentation)", fontsize=14, fontweight="bold", y=0.995)
 
-    if num_rows == 1:
-        axes = np.expand_dims(axes, 0)
-    if num_cols == 1:
-        axes = np.expand_dims(axes, 1)
+    axes = np.asarray(axes).reshape(num_rows, num_cols)
 
     for row_idx, cls_name in enumerate(classes):
         indices = class_indices[cls_name]
         step_desc = STEP_NAMES.get(cls_name, "")
         
         # Pick evenly spaced samples from this class
-        if len(indices) >= samples_per_class:
+        if samples_per_class <= 1:
+            chosen = [indices[0]] if indices else []
+        elif len(indices) >= samples_per_class:
             chosen = [indices[int(i * (len(indices) - 1) / (samples_per_class - 1))] for i in range(samples_per_class)]
         else:
             chosen = indices + [indices[-1]] * (samples_per_class - len(indices)) if indices else []
