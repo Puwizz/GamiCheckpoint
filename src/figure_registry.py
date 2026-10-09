@@ -78,14 +78,14 @@ class FigureRegistry:
                 "description_en": fig.get("description_en", ""),
                 "status": fig.get("status", "coming_soon"),
                 "difficulty": fig.get("difficulty", "ระดับง่าย"),
-                "difficulty_level": fig.get("difficulty_level", 1),
+                "difficulty_level": fig.get("difficulty_level") or 1,
                 "estimated_minutes": fig.get("estimated_minutes", 5),
                 "thumbnail": fig.get("thumbnail", "/static/references/step-1.png"),
                 "icon": fig.get("icon", "origami"),
                 "total_steps": fig.get("total_steps", len(steps)),
             })
 
-        summaries.sort(key=lambda x: (0 if x["status"] == "available" else 1, x.get("difficulty_level", 1)))
+        summaries.sort(key=lambda x: (0 if x["status"] == "available" else 1, x.get("difficulty_level") or 1))
         return summaries
 
     def get(self, figure_id: str) -> Optional[Dict[str, Any]]:
