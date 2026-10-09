@@ -11,6 +11,7 @@ Legacy MobileNet code is archived in scripts/legacy/.
 """
 
 import io
+import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -179,6 +180,26 @@ class StepVerifier:
                 "Pass detector=YoloStepVerifier(...) or detector=SyntheticDetectorAdapter(...)."
             )
 
+    def _no_origami_result(self, w: int, h: int, frame_metrics: Dict[str, float]) -> VerificationResult:
+        return VerificationResult(
+            frame_ready=True,
+            recognized=False,
+            recognition_reason="no_origami_detected",
+            prediction="Chk0_NonOrigami",
+            step="Chk0_NonOrigami",
+            step_number=0,
+            step_name=self.step_names.get("Chk0_NonOrigami", "Non-Origami / Background"),
+            confidence=0.0,
+            top_gap=0.0,
+            recognition_thresholds={
+                "min_confidence": self.min_confidence,
+                "min_top_gap": self.min_top_gap,
+            },
+            roi={"applied": False, "method": getattr(self.detector, "adapter_name", "detector"), "bbox": [0, 0, w, h]},
+            top_predictions=[],
+            metrics=frame_metrics,
+        )
+
     def verify_bgr(self, frame_bgr: np.ndarray) -> VerificationResult:
         """Verify an OpenCV BGR frame."""
         frame_ready, frame_reason, frame_metrics = assess_frame_readiness(frame_bgr)
@@ -217,35 +238,27 @@ class StepVerifier:
         h, w = frame_bgr.shape[:2]
 
         if not detections:
-            return VerificationResult(
-                frame_ready=True,
-                recognized=False,
-                recognition_reason="no_origami_detected",
-                prediction="Chk0_NonOrigami",
-                step="Chk0_NonOrigami",
-                step_number=0,
-                step_name=self.step_names.get("Chk0_NonOrigami", "Non-Origami / Background"),
-                confidence=0.0,
-                top_gap=0.0,
-                recognition_thresholds={
-                    "min_confidence": self.min_confidence,
-                    "min_top_gap": self.min_top_gap,
-                },
-                roi={"applied": False, "method": getattr(self.detector, "adapter_name", "detector"), "bbox": [0, 0, w, h]},
-                top_predictions=[],
-                metrics=frame_metrics,
-            )
+            return self._no_origami_result(w, h, frame_metrics)
 
         # Aggregate detections per class (highest confidence per unique class)
         class_max_conf: Dict[str, float] = {}
         class_best_det: Dict[str, Detection] = {}
         for d in detections:
-            conf_val = float(d.confidence)
+            try:
+                conf_val = float(d.confidence)
+                if math.isnan(conf_val) or math.isinf(conf_val):
+                    conf_val = 0.0
+            except (TypeError, ValueError):
+                conf_val = 0.0
+
             if conf_val > class_max_conf.get(d.class_name, -1.0):
                 class_max_conf[d.class_name] = conf_val
                 class_best_det[d.class_name] = d
 
         sorted_classes = sorted(class_max_conf.items(), key=lambda item: item[1], reverse=True)
+        if not sorted_classes:
+            return self._no_origami_result(w, h, frame_metrics)
+
         best_cls_name, best_raw_conf = sorted_classes[0]
         best_det = class_best_det[best_cls_name]
 
