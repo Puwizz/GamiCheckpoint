@@ -79,6 +79,26 @@ app.add_middleware(
 )
 
 
+def make_error_response(status_code: int, detail: str, extra: dict = None) -> JSONResponse:
+    """Return a consistent error JSON response containing both RFC-standard 'detail' and 'error' keys."""
+    content = {
+        "detail": detail,
+        "error": detail,
+    }
+    if extra:
+        content.update(extra)
+    return JSONResponse(status_code=status_code, content=content)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "error": str(exc.detail)},
+        headers=exc.headers,
+    )
+
+
 @app.get("/api/figures")
 async def list_figures(reload: bool = Query(False, description="Force reload registry from disk")):
     if reload:
@@ -117,22 +137,22 @@ async def predict_frame(
 ):
     fig_config = state.registry.get(figure)
     if not fig_config:
-        return JSONResponse(status_code=404, content={"error": f"Origami figure '{figure}' does not exist."})
+        return make_error_response(status_code=404, detail=f"Origami figure '{figure}' does not exist.")
 
     if fig_config.get("status") != "available":
-        return JSONResponse(
+        return make_error_response(
             status_code=400,
-            content={
-                "error": f"Model for '{figure}' is currently under development (Coming Soon).",
+            detail=f"Model for '{figure}' is currently under development (Coming Soon).",
+            extra={
                 "figure": figure,
                 "status": fig_config.get("status"),
             },
         )
 
     if file.content_type and file.content_type.lower() not in ALLOWED_IMAGE_TYPES:
-        return JSONResponse(
+        return make_error_response(
             status_code=400,
-            content={"error": f"Unsupported media type '{file.content_type}'. Allowed types: {sorted(list(ALLOWED_IMAGE_TYPES))}"},
+            detail=f"Unsupported media type '{file.content_type}'. Allowed types: {sorted(list(ALLOWED_IMAGE_TYPES))}",
         )
 
     contents = bytearray()
@@ -144,29 +164,29 @@ async def predict_frame(
                 break
             contents.extend(chunk)
             if len(contents) > MAX_UPLOAD_SIZE:
-                return JSONResponse(
+                return make_error_response(
                     status_code=413,
-                    content={"error": f"File size exceeds maximum allowed limit of {MAX_UPLOAD_SIZE // (1024 * 1024)}MB."},
+                    detail=f"File size exceeds maximum allowed limit of {MAX_UPLOAD_SIZE // (1024 * 1024)}MB.",
                 )
     except Exception as e:
-        return JSONResponse(status_code=400, content={"error": f"Failed to read uploaded file: {str(e)}"})
+        return make_error_response(status_code=400, detail=f"Failed to read uploaded file: {str(e)}")
     finally:
         await file.close()
 
     if len(contents) == 0:
-        return JSONResponse(status_code=400, content={"error": "Uploaded image file is empty."})
+        return make_error_response(status_code=400, detail="Uploaded image file is empty.")
 
     contents = bytes(contents)
 
     target_verifier = state.get_verifier(figure)
     if not target_verifier:
-        return JSONResponse(status_code=503, content={"error": f"Model for '{figure}' is not loaded yet."})
+        return make_error_response(status_code=503, detail=f"Model for '{figure}' is not loaded yet.")
 
     try:
         result = await run_in_threadpool(target_verifier.verify_bytes, contents)
         return result.to_dict()
     except Exception as e:
-        return JSONResponse(status_code=400, content={"error": f"Invalid image format: {str(e)}"})
+        return make_error_response(status_code=400, detail=f"Invalid image format: {str(e)}")
 
 
 if os.path.exists(STATIC_DIR):
