@@ -3,6 +3,7 @@ import sys
 import torch
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, UploadFile, Query, Path, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
@@ -52,6 +53,26 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="GamiSenpai API", lifespan=lifespan)
+
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+cors_origins_env = os.environ.get("CORS_ORIGINS")
+if cors_origins_env:
+    cors_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+else:
+    cors_origins = DEFAULT_CORS_ORIGINS
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/api/figures")
