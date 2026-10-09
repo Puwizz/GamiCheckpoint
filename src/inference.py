@@ -3,9 +3,11 @@ inference.py — Unified Step Verification and Inference Engine
 ==============================================================
 Centralizes all real-time inference logic for Origami step classification:
 - Camera hardware readiness assessment (Luma and Contrast gates)
-- Foreground paper localization and cropping
-- Dual-path inference (blended fusion between full-frame and foreground crop)
 - Confidence and Top-Gap threshold gating
+
+NOTE: MobileNetV2 ClassificationDetectorAdapter has been removed.
+The active verifier backend is YoloStepVerifier (see yolo_verifier.py).
+Legacy MobileNet code is archived in scripts/legacy/.
 """
 
 import io
@@ -16,9 +18,7 @@ import cv2
 import numpy as np
 from PIL import Image
 import torch
-import torch.nn.functional as F
 
-from preprocessing import crop_to_foreground, tensor_transform
 from step_config import STEP_CLASSES, STEP_NAMES, step_number
 
 
@@ -131,88 +131,6 @@ class SyntheticDetectorAdapter(DetectorAdapter):
         return self.detections
 
 
-class ClassificationDetectorAdapter(DetectorAdapter):
-    """Adapter for legacy MobileNetV2 dual-path classification model."""
-    adapter_name = "dual_path_mobilenet"
-    fusion_mode = "blended"
-
-    def __init__(self, model: torch.nn.Module, device: Any, classes: List[str]):
-        self.model = model
-        self.device = device
-        self.classes = classes
-        self.model = self.model.to(self.device)
-        self.model.eval()
-
-    def detect(self, frame_bgr: np.ndarray, imgsz: int = 1024) -> List[Detection]:
-        cropped_bgr, roi_meta = crop_to_foreground(frame_bgr)
-        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        cropped_rgb = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2RGB)
-        full_image = Image.fromarray(frame_rgb)
-        cropped_image = Image.fromarray(cropped_rgb)
-
-        original_tensor = tensor_transform(full_image).unsqueeze(0).to(self.device)
-        cropped_tensor = tensor_transform(cropped_image).unsqueeze(0).to(self.device)
-
-        with torch.no_grad():
-            original_outputs = self.model(original_tensor)
-            cropped_outputs = self.model(cropped_tensor)
-
-            original_probabilities = F.softmax(original_outputs, dim=1)
-            cropped_probabilities = F.softmax(cropped_outputs, dim=1)
-            original_conf, original_idx = torch.max(original_probabilities, 1)
-            cropped_conf, cropped_idx = torch.max(cropped_probabilities, 1)
-
-            original_pred_class = self.classes[original_idx.item()]
-            cropped_pred_class = self.classes[cropped_idx.item()]
-
-            crop_weight = 0.0
-            if roi_meta.get("applied"):
-                if cropped_pred_class != "Chk0_NonOrigami":
-                    crop_weight = 1.0
-                    self.fusion_mode = "crop-priority"
-                elif original_pred_class != "Chk0_NonOrigami":
-                    crop_weight = 0.30
-                    self.fusion_mode = "full-priority"
-                else:
-                    crop_weight = 0.50
-                    self.fusion_mode = "blended"
-            else:
-                self.fusion_mode = "full-frame"
-
-            outputs = ((1.0 - crop_weight) * original_outputs) + (crop_weight * cropped_outputs)
-            if roi_meta.get("applied") and cropped_pred_class != "Chk0_NonOrigami":
-                if "Chk0_NonOrigami" in self.classes:
-                    chk0_idx = self.classes.index("Chk0_NonOrigami")
-                    outputs[0, chk0_idx] = -100.0
-
-            probabilities = F.softmax(outputs, dim=1)
-
-            # Step 6 aspect ratio bias
-            if roi_meta.get("applied") and roi_meta.get("bbox"):
-                x1, y1, x2, y2 = roi_meta["bbox"]
-                bw = max(1, x2 - x1)
-                bh = max(1, y2 - y1)
-                aspect = bw / float(bh)
-                chk5_idx = self.classes.index("Chk5") if "Chk5" in self.classes else -1
-                chk6_idx = self.classes.index("Chk6") if "Chk6" in self.classes else -1
-                if chk5_idx >= 0 and chk6_idx >= 0 and aspect > 1.25:
-                    if probabilities[0, chk6_idx] > 0.15:
-                        probabilities[0, chk6_idx] = probabilities[0, chk6_idx] * 1.35
-                        probabilities = probabilities / probabilities.sum(dim=1, keepdim=True)
-
-        detections = []
-        raw_bbox = tuple(roi_meta["bbox"]) if roi_meta.get("applied") and roi_meta.get("bbox") else None
-        probs = probabilities[0].tolist()
-        for idx, p in enumerate(probs):
-            if idx < len(self.classes):
-                detections.append(Detection(
-                    class_name=self.classes[idx],
-                    confidence=float(p),
-                    bbox=raw_bbox,
-                    cls_idx=idx,
-                ))
-        return detections
-
 
 class StepVerifier:
     """
@@ -222,7 +140,6 @@ class StepVerifier:
 
     def __init__(
         self,
-        model: Optional[Any] = None,
         detector: Optional[DetectorAdapter] = None,
         device: Optional[Any] = None,
         classes: Tuple[str, ...] = STEP_CLASSES,
@@ -244,14 +161,12 @@ class StepVerifier:
         self.step_names = step_names or STEP_NAMES
         self.imgsz = imgsz
         self.detector = detector
-        self.model = model
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        if self.detector is None and self.model is not None:
-            self.detector = ClassificationDetectorAdapter(
-                model=self.model,
-                device=self.device,
-                classes=self.classes,
+        if self.detector is None:
+            raise ValueError(
+                "StepVerifier requires a DetectorAdapter. "
+                "Pass detector=YoloStepVerifier(...) or detector=SyntheticDetectorAdapter(...)."
             )
 
     def verify_bgr(self, frame_bgr: np.ndarray) -> VerificationResult:

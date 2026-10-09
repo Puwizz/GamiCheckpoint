@@ -53,5 +53,5 @@ The backend-driven dynamic domain module loading figure specifications from `con
 _Avoid_: figure manager, model database, config loader
 
 **Detector Adapter**:
-An internal adapter plugged into the StepVerifier at its internal seam to execute model predictions (`YoloDetectorAdapter`, `ClassificationDetectorAdapter`, or `SyntheticDetectorAdapter` for tests).
+An internal adapter plugged into the StepVerifier at its internal seam to execute model predictions (`YoloDetectorAdapter`, or `SyntheticDetectorAdapter` for tests).
 _Avoid_: model service, detector client, model wrapper
