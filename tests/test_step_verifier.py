@@ -78,3 +78,71 @@ def test_step_verifier_dark_frame_rejection():
     assert result.frame_ready is False
     assert result.recognized is False
     assert result.recognition_reason == "camera_placeholder_or_too_dark"
+
+
+def test_assess_frame_readiness_handles_grayscale_and_rgba():
+    from src.inference import assess_frame_readiness
+
+    # 2D grayscale array
+    gray_2d = np.full((100, 100), 128, dtype=np.uint8)
+    ready, reason, _ = assess_frame_readiness(gray_2d)
+    assert reason != "invalid_frame_format"
+
+    # 3D 1-channel array
+    gray_3d = np.full((100, 100, 1), 128, dtype=np.uint8)
+    ready, reason, _ = assess_frame_readiness(gray_3d)
+    assert reason != "invalid_frame_format"
+
+    # 4-channel BGRA array
+    bgra_4d = np.full((100, 100, 4), 128, dtype=np.uint8)
+    ready, reason, _ = assess_frame_readiness(bgra_4d)
+    assert reason != "invalid_frame_format"
+
+
+def test_step_verifier_handles_grayscale_and_rgba_frames():
+    adapter = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk1", confidence=0.95, bbox=(10, 20, 50, 60))
+    ])
+    verifier = StepVerifier(
+        detector=adapter,
+        classes=("Chk1", "Chk2"),
+    )
+
+    # 2D textured grayscale frame
+    gray_frame = np.random.randint(100, 200, (480, 640), dtype=np.uint8)
+    res_gray = verifier.verify_bgr(gray_frame)
+    assert res_gray.frame_ready is True
+    assert res_gray.recognized is True
+    assert res_gray.prediction == "Chk1"
+
+    # 4-channel BGRA frame
+    bgra_frame = np.random.randint(100, 200, (480, 640, 4), dtype=np.uint8)
+    res_bgra = verifier.verify_bgr(bgra_frame)
+    assert res_bgra.frame_ready is True
+    assert res_bgra.recognized is True
+    assert res_bgra.prediction == "Chk1"
+
+
+def test_auto_crop_foreground_handles_rgba_and_grayscale():
+    from PIL import Image
+    from src.preprocessing import AutoCropForeground
+
+    cropper = AutoCropForeground()
+
+    # RGBA image
+    rgba_img = Image.new("RGBA", (100, 100), (255, 255, 255, 255))
+    res_rgba = cropper(rgba_img)
+    assert isinstance(res_rgba, Image.Image)
+    assert res_rgba.mode == "RGB"
+
+    # Grayscale 'L' image
+    gray_img = Image.new("L", (100, 100), 200)
+    res_gray = cropper(gray_img)
+    assert isinstance(res_gray, Image.Image)
+    assert res_gray.mode == "RGB"
+
+    # Palette 'P' image
+    palette_img = Image.new("P", (100, 100))
+    res_palette = cropper(palette_img)
+    assert isinstance(res_palette, Image.Image)
+    assert res_palette.mode == "RGB"
