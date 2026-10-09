@@ -104,3 +104,24 @@ def test_predict_invalid_query_pattern(client):
         files={"file": ("test.jpg", b"dummy", "image/jpeg")},
     )
     assert response.status_code == 422
+
+
+def test_cors_headers_allowed_origin(client):
+    response = client.get("/api/figures", headers={"Origin": "http://localhost:5173"})
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
+    assert response.headers.get("access-control-allow-credentials") == "true"
+
+
+def test_cors_preflight_options(client):
+    response = client.options(
+        "/api/predict",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
+    assert "POST" in response.headers.get("access-control-allow-methods", "")
