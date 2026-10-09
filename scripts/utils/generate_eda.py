@@ -50,7 +50,7 @@ def main():
     parser.add_argument("--output", default="outputs/plots/dataset_distribution.png", help="Output plot path")
     args = parser.parse_args()
 
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     sessions_path = os.path.join(base_dir, args.sessions_dir)
     output_path = os.path.join(base_dir, args.output)
 

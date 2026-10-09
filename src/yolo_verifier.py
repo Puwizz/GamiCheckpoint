@@ -63,6 +63,7 @@ class YoloDetectorAdapter(DetectorAdapter):
             conf=detect_conf,
             imgsz=imgsz,
             device=self.device,
+            half=self.is_half,
             verbose=False,
         )
         boxes = results[0].boxes if len(results) > 0 else None

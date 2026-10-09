@@ -12,7 +12,7 @@ import zipfile
 from collections import defaultdict
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 ZIP_PATH = ROOT / "data" / "roboflow.zip"
 OUT_DIR = ROOT / "data" / "origami_seg_roboflow_v1"
 CONFIG_YAML_PATH = ROOT / "configs" / "origami_seg_roboflow_v1.yaml"
