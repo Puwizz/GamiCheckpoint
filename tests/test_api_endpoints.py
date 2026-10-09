@@ -156,3 +156,37 @@ def test_predict_model_not_loaded_503(client, monkeypatch):
     )
     assert response.status_code == 503
     assert "not loaded yet" in response.json()["error"].lower()
+
+
+def test_consistent_error_response_schema_detail_and_error(client):
+    """APP-05: Verify that error responses consistently provide both 'detail' and 'error' keys."""
+    # 404 from get_figure_detail (HTTPException)
+    res_404 = client.get("/api/figures/nonexistent_figure")
+    assert res_404.status_code == 404
+    data_404 = res_404.json()
+    assert "detail" in data_404
+    assert "error" in data_404
+    assert data_404["detail"] == data_404["error"]
+
+    # 404 from predict_frame
+    res_pred_404 = client.post(
+        "/api/predict?figure=nonexistent_figure",
+        files={"file": ("test.jpg", b"dummy", "image/jpeg")},
+    )
+    assert res_pred_404.status_code == 404
+    data_pred_404 = res_pred_404.json()
+    assert "detail" in data_pred_404
+    assert "error" in data_pred_404
+    assert data_pred_404["detail"] == data_pred_404["error"]
+
+    # 400 from empty file upload
+    res_pred_400 = client.post(
+        "/api/predict?figure=crane",
+        files={"file": ("test.jpg", b"", "image/jpeg")},
+    )
+    assert res_pred_400.status_code == 400
+    data_pred_400 = res_pred_400.json()
+    assert "detail" in data_pred_400
+    assert "error" in data_pred_400
+    assert data_pred_400["detail"] == data_pred_400["error"]
+
