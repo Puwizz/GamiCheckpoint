@@ -120,6 +120,8 @@ scripts/yolo/generate_seg_dataset.py
 PROJECT_STATUS.md
 AI_WORKFLOW.md
 *AI_WORKFLOW*.md
+REVIEW_REPORT.md
+*REVIEW_REPORT*.md
 docs/archive/
 docs/deep-dive/
 

@@ -179,23 +179,8 @@ class FigureRegistry:
             )
             self._verifiers[figure_id] = verifier
             return verifier
-        elif model_path.endswith(".pth"):
-            from inference import StepVerifier
-            from model import StepModel
-            import torch
-            dev = torch.device(device if device else ("cuda" if torch.cuda.is_available() else "cpu"))
-            pth_classes = list(classes)
-            if "Chk0_NonOrigami" not in pth_classes:
-                pth_classes.insert(0, "Chk0_NonOrigami")
-            step_model = StepModel.load_checkpoint(model_path, device=dev, expected_classes=pth_classes)
-            verifier = StepVerifier(
-                model=step_model,
-                device=dev,
-                classes=tuple(pth_classes),
-            )
-            self._verifiers[figure_id] = verifier
-            return verifier
 
+        print(f"[WARN] Figure '{figure_id}' model_path has unsupported format (expected .pt): {model_path}")
         return None
 
     # Mapping protocol methods for transparent dict compatibility
