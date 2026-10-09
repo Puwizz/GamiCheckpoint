@@ -146,3 +146,42 @@ def test_auto_crop_foreground_handles_rgba_and_grayscale():
     res_palette = cropper(palette_img)
     assert isinstance(res_palette, Image.Image)
     assert res_palette.mode == "RGB"
+
+
+def test_step_verifier_handles_nan_confidence_without_index_error():
+    """CORE-10: Verify that NaN detection confidences do not cause IndexError: list index out of range."""
+    adapter = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk1", confidence=float("nan"), bbox=(10, 20, 100, 120))
+    ])
+    verifier = StepVerifier(
+        detector=adapter,
+        classes=("Chk1", "Chk2", "Chk3", "Chk4", "Chk5", "Chk6"),
+    )
+    frame = create_bright_frame()
+    result = verifier.verify_bgr(frame)
+
+    assert result.frame_ready is True
+    assert result.recognized is False
+    assert result.confidence == 0.0
+    assert result.prediction == "Chk1"
+
+
+def test_step_verifier_handles_mixed_nan_and_valid_confidences():
+    """CORE-10: Verify that valid confidences win over NaN confidences."""
+    adapter = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk1", confidence=float("nan"), bbox=(10, 20, 100, 120)),
+        Detection(class_name="Chk2", confidence=0.92, bbox=(15, 25, 95, 115)),
+    ])
+    verifier = StepVerifier(
+        detector=adapter,
+        classes=("Chk1", "Chk2", "Chk3", "Chk4", "Chk5", "Chk6"),
+        conf_threshold=0.55,
+    )
+    frame = create_bright_frame()
+    result = verifier.verify_bgr(frame)
+
+    assert result.frame_ready is True
+    assert result.recognized is True
+    assert result.prediction == "Chk2"
+    assert result.confidence == 92.0
+
