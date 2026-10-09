@@ -48,6 +48,7 @@ export class CameraStreamAdapter {
   }
 
   public async start(): Promise<MediaStream> {
+    this.stop();
     const videoConstraints: MediaTrackConstraints = this.selectedDeviceId
       ? { deviceId: { exact: this.selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
       : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } };

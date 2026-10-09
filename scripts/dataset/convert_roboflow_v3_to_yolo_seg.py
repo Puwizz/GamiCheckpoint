@@ -18,7 +18,7 @@ import zipfile
 from collections import defaultdict
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 ZIP_PATH = ROOT / "data" / "GamiSenpai.v3i.coco-segmentation.zip"
 OUT_DIR = ROOT / "data" / "origami_seg_roboflow_v3"
 CONFIG_YAML_PATH = ROOT / "configs" / "origami_seg_roboflow_v3.yaml"

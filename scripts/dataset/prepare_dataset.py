@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 # Add project root and src to python path for imports
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
@@ -47,7 +47,7 @@ class ImageRecord:
 
 
 def parse_args():
-    root = Path(__file__).resolve().parents[1]
+    root = ROOT
     parser = argparse.ArgumentParser(
         description="Audit and prepare train/val/test data split by capture session."
     )
@@ -107,7 +107,7 @@ def find_step_directory(session_dir, step_name):
 
 def load_config(config_path, project_root=None):
     config_path = Path(config_path).resolve()
-    project_root = Path(project_root or Path(__file__).resolve().parents[1]).resolve()
+    project_root = Path(project_root or ROOT).resolve()
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
     except FileNotFoundError as error:

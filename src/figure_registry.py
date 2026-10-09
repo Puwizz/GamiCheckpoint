@@ -184,11 +184,14 @@ class FigureRegistry:
             from model import StepModel
             import torch
             dev = torch.device(device if device else ("cuda" if torch.cuda.is_available() else "cpu"))
-            step_model = StepModel.load_checkpoint(model_path, device=dev, expected_classes=list(classes))
+            pth_classes = list(classes)
+            if "Chk0_NonOrigami" not in pth_classes:
+                pth_classes.insert(0, "Chk0_NonOrigami")
+            step_model = StepModel.load_checkpoint(model_path, device=dev, expected_classes=pth_classes)
             verifier = StepVerifier(
                 model=step_model,
                 device=dev,
-                classes=classes,
+                classes=tuple(pth_classes),
             )
             self._verifiers[figure_id] = verifier
             return verifier
