@@ -78,3 +78,18 @@ def test_figure_registry_caching_and_reload(tmp_path):
     # Reload should now see 2 items
     assert len(reg.list_summaries(force_reload=True)) == 2
     assert "butterfly" in reg
+
+
+def test_figure_registry_get_verifier_handles_exception(monkeypatch):
+    reg = FigureRegistry()
+    reg.load()
+
+    def mock_init(*args, **kwargs):
+        raise RuntimeError("Corrupted weights or CUDA OOM simulation")
+
+    import yolo_verifier
+    monkeypatch.setattr(yolo_verifier, "YoloStepVerifier", mock_init)
+
+    # Must return None gracefully instead of raising unhandled exception
+    verifier = reg.get_verifier("crane")
+    assert verifier is None

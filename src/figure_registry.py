@@ -168,20 +168,24 @@ class FigureRegistry:
             return None
 
         classes = tuple(self.get_classes(figure_id))
-        if model_path.endswith(".pt"):
-            from yolo_verifier import YoloStepVerifier
-            verifier = YoloStepVerifier(
-                model_path=model_path,
-                classes=classes,
-                conf_threshold=0.55,
-                imgsz=1024,
-                device=device,
-            )
-            self._verifiers[figure_id] = verifier
-            return verifier
+        try:
+            if model_path.endswith(".pt"):
+                from yolo_verifier import YoloStepVerifier
+                verifier = YoloStepVerifier(
+                    model_path=model_path,
+                    classes=classes,
+                    conf_threshold=0.55,
+                    imgsz=1024,
+                    device=device,
+                )
+                self._verifiers[figure_id] = verifier
+                return verifier
 
-        print(f"[WARN] Figure '{figure_id}' model_path has unsupported format (expected .pt): {model_path}")
-        return None
+            print(f"[WARN] Figure '{figure_id}' model_path has unsupported format (expected .pt): {model_path}")
+            return None
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize verifier for '{figure_id}' from '{model_path}': {e}")
+            return None
 
     # Mapping protocol methods for transparent dict compatibility
     def __contains__(self, item: str) -> bool:
