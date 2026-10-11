@@ -170,4 +170,50 @@ describe('TutorialCoordinator', () => {
     expect(coordinator.getCurrentStep()).toBe(7);
     expect(celebrationEndSpy).toHaveBeenCalledWith(null);
   });
+
+  it('restores progress respecting dynamic totalSteps for figures with fewer steps (FE-03)', () => {
+    const map = new Map<string, string>();
+    const storage: StorageProvider = {
+      getItem: (k) => map.get(k) ?? null,
+      setItem: (k, v) => { map.set(k, v); },
+      removeItem: (k) => { map.delete(k); },
+    };
+
+    storage.setItem(
+      'gamisenpai_tutorial_progress',
+      JSON.stringify({ currentStep: 5, completedSteps: [1, 2, 3, 4, 5] })
+    );
+
+    const coordinator = new TutorialCoordinator({ totalSteps: 4, storageProvider: storage });
+    expect(coordinator.getCurrentStep()).toBe(1);
+    expect(coordinator.getCompletedSteps()).toEqual([1, 2, 3, 4]);
+
+    storage.setItem(
+      'gamisenpai_tutorial_progress',
+      JSON.stringify({ currentStep: 3, completedSteps: [1, 2] })
+    );
+
+    const coordinatorValid = new TutorialCoordinator({ totalSteps: 4, storageProvider: storage });
+    expect(coordinatorValid.getCurrentStep()).toBe(3);
+    expect(coordinatorValid.getCompletedSteps()).toEqual([1, 2]);
+  });
+
+  it('restores progress respecting dynamic totalSteps for figures with more steps (FE-03)', () => {
+    const map = new Map<string, string>();
+    const storage: StorageProvider = {
+      getItem: (k) => map.get(k) ?? null,
+      setItem: (k, v) => { map.set(k, v); },
+      removeItem: (k) => { map.delete(k); },
+    };
+
+    storage.setItem(
+      'gamisenpai_tutorial_progress',
+      JSON.stringify({ currentStep: 7, completedSteps: [1, 2, 3, 4, 5, 6] })
+    );
+
+    const coordinator = new TutorialCoordinator({ totalSteps: 8, storageProvider: storage });
+    expect(coordinator.getCurrentStep()).toBe(7);
+    expect(coordinator.getCompletedSteps()).toEqual([1, 2, 3, 4, 5, 6]);
+  });
 });
+

@@ -307,7 +307,7 @@ export class TutorialCoordinator {
   }
 
   private restoreProgress(forcedStep?: number): void {
-    if (forcedStep && forcedStep >= 1 && forcedStep <= TOTAL_STEPS) {
+    if (forcedStep && forcedStep >= 1 && forcedStep <= this.totalSteps) {
       this.currentStep = forcedStep;
       return;
     }
@@ -316,11 +316,13 @@ export class TutorialCoordinator {
       const raw = this.storage.getItem(this.storageKey);
       if (!raw) return;
       const data: TutorialProgress = JSON.parse(raw);
-      if (data.currentStep && data.currentStep >= 1 && data.currentStep <= TOTAL_STEPS) {
+      if (data.currentStep && data.currentStep >= 1 && data.currentStep <= this.totalSteps) {
         this.currentStep = data.currentStep;
       }
       if (Array.isArray(data.completedSteps)) {
-        this.completedSteps = new Set(data.completedSteps);
+        this.completedSteps = new Set(
+          data.completedSteps.filter((s) => typeof s === 'number' && s >= 1 && s <= this.totalSteps)
+        );
       }
     } catch {
       // Fall back to Step 1 on parse error
