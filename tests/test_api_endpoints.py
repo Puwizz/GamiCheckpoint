@@ -190,3 +190,51 @@ def test_consistent_error_response_schema_detail_and_error(client):
     assert "error" in data_pred_400
     assert data_pred_400["detail"] == data_pred_400["error"]
 
+
+def test_dynamic_verifier_loading_multi_figure(monkeypatch):
+    """APP-03: Verify that AppState dynamically retrieves and caches verifiers for multi-figure catalog."""
+    from unittest.mock import MagicMock
+    mock_verifier = MagicMock()
+    mock_verifier.classes = ("Chk1", "Chk2", "Chk3")
+
+    # Add a mock figure to registry
+    monkeypatch.setitem(app_module.state.registry._registry, "custom_bird", {
+        "id": "custom_bird",
+        "status": "available",
+        "total_steps": 3,
+        "steps": [
+            {"step_number": 1, "class_name": "Chk1"},
+            {"step_number": 2, "class_name": "Chk2"},
+            {"step_number": 3, "class_name": "Chk3"},
+        ]
+    })
+    # Ensure it's not yet in app_module.state.verifiers
+    app_module.state.verifiers.pop("custom_bird", None)
+
+    # Mock registry.get_verifier to return mock_verifier
+    monkeypatch.setattr(app_module.state.registry, "get_verifier", lambda fig_id, device=None: mock_verifier if fig_id == "custom_bird" else None)
+
+    # Retrieve through state
+    verifier = app_module.state.get_verifier("custom_bird")
+    assert verifier is mock_verifier
+    assert "custom_bird" in app_module.state.verifiers
+    assert app_module.state.verifiers["custom_bird"] is mock_verifier
+
+
+def test_multi_figure_get_classes_from_registry():
+    """APP-03: Verify that state.get_classes returns figure-specific classes from registry when available."""
+    # Frog is defined in configs/figures/frog.json with 4 steps: Chk1 to Chk4
+    classes = app_module.state.get_classes("frog")
+    assert classes == ["Chk1", "Chk2", "Chk3", "Chk4"]
+
+
+def test_list_figures_reload_clears_verifier_cache(client):
+    """APP-03: Verify that calling /api/figures?reload=true flushes state.verifiers cache."""
+    app_module.state.verifiers["cached_test"] = "dummy_obj"
+    assert "cached_test" in app_module.state.verifiers
+
+    response = client.get("/api/figures?reload=true")
+    assert response.status_code == 200
+    assert "cached_test" not in app_module.state.verifiers
+
+
