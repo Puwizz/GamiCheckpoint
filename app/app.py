@@ -29,20 +29,34 @@ class AppState:
     def load(self):
         self.registry.load()
         print(f"[INFO] Loaded {len(self.registry)} origami figure specifications: {list(self.registry.keys())}")
-        try:
-            verifier = self.registry.get_verifier("crane", device=str(DEVICE))
-            self.verifiers["crane"] = verifier
-        except Exception as e:
-            print(f"[ERROR] Failed to initialize default verifier on startup: {e}")
-            self.verifiers["crane"] = None
+        for figure_id, fig_config in self.registry.items():
+            if fig_config.get("status") == "available":
+                try:
+                    verifier = self.registry.get_verifier(figure_id, device=str(DEVICE))
+                    if verifier is not None:
+                        self.verifiers[figure_id] = verifier
+                except Exception as e:
+                    print(f"[ERROR] Failed to initialize verifier for available figure '{figure_id}': {e}")
+                    self.verifiers[figure_id] = None
 
     def get_verifier(self, figure_id: str):
+        if figure_id not in self.verifiers:
+            if figure_id in self.registry:
+                try:
+                    v = self.registry.get_verifier(figure_id, device=str(DEVICE))
+                    if v is not None:
+                        self.verifiers[figure_id] = v
+                except Exception as e:
+                    print(f"[ERROR] Failed to dynamically load verifier for figure '{figure_id}': {e}")
         return self.verifiers.get(figure_id)
 
     def get_classes(self, figure_id: str):
         verifier = self.get_verifier(figure_id)
         if verifier and hasattr(verifier, "classes"):
             return list(verifier.classes)
+        reg_classes = self.registry.get_classes(figure_id)
+        if reg_classes:
+            return list(reg_classes)
         return self.default_classes
 
 
@@ -54,6 +68,7 @@ async def lifespan(app: FastAPI):
     state.load()
     yield
     state.verifiers.clear()
+    state.registry._verifiers.clear()
 
 
 app = FastAPI(title="GamiSenpai API", lifespan=lifespan)
@@ -103,6 +118,7 @@ async def http_exception_handler(request, exc: HTTPException):
 async def list_figures(reload: bool = Query(False, description="Force reload registry from disk")):
     if reload:
         state.registry.load(force_reload=True)
+        state.verifiers.clear()
     return state.registry.list_summaries()
 
 
