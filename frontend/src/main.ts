@@ -2,6 +2,7 @@ import { StepSessionEngine, UIStatusState } from './session-engine';
 import { DetectionOverlayRenderer, formatRoiMethod } from './hud-overlay';
 import { CameraStreamAdapter } from './camera';
 import { TutorialCoordinator } from './tutorial-coordinator';
+import { VideoStepLoader } from './video-loader';
 import {
   TOTAL_STEPS,
   STEPS,
@@ -134,6 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const sessionEngine = new StepSessionEngine(1, TOTAL_STEPS, activeStepDefs);
   const hudOverlay = new DetectionOverlayRenderer(detectionCanvas, webcam);
   const cameraAdapter = new CameraStreamAdapter(webcam);
+  const videoLoader = new VideoStepLoader();
 
   let intervalId: number | null = null;
   let isProcessing = false;
@@ -361,46 +363,33 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!tutorialVideo) return;
     const guide = tutor.getCurrentGuide();
 
-    // Hide fallback container while attempting video load
-    if (videoFallbackContainer) videoFallbackContainer.classList.add('hidden');
-    tutorialVideo.classList.remove('hidden');
-    if (videoLoadingOverlay) videoLoadingOverlay.classList.remove('hidden');
-
-    if (!guide.videoUrl) {
-      // Direct fallback to image guide mode
-      triggerFallback(guide.fallbackImageUrl);
-      return;
-    }
-
-    tutorialVideo.src = guide.videoUrl;
-    tutorialVideo.playbackRate = tutor.getPlaybackSpeed();
-    tutorialVideo.loop = tutor.getIsLooping();
-
-    // Reset Play button text
     if (btnVideoPlay) btnVideoPlay.textContent = 'หยุด';
 
-    const onCanPlay = () => {
-      tutorialVideo.removeEventListener('canplay', onCanPlay);
-      tutorialVideo.removeEventListener('error', onError);
-      if (videoLoadingOverlay) videoLoadingOverlay.classList.add('hidden');
-      tutorialVideo.play().catch(() => {
-        // Autoplay may require user interaction
-      });
-    };
-
-    const onError = () => {
-      tutorialVideo.removeEventListener('canplay', onCanPlay);
-      tutorialVideo.removeEventListener('error', onError);
-      console.warn(`[Tutor] Video load failed for Step ${step} (${guide.videoUrl}), triggering fallback.`);
-      triggerFallback(guide.fallbackImageUrl);
-    };
-
-    tutorialVideo.addEventListener('canplay', onCanPlay, { once: true });
-    tutorialVideo.addEventListener('error', onError, { once: true });
-    tutorialVideo.load();
+    videoLoader.load(
+      tutorialVideo,
+      guide.videoUrl,
+      guide.fallbackImageUrl,
+      tutor.getPlaybackSpeed(),
+      tutor.getIsLooping(),
+      {
+        onStart: () => {
+          if (videoFallbackContainer) videoFallbackContainer.classList.add('hidden');
+          tutorialVideo.classList.remove('hidden');
+          if (videoLoadingOverlay) videoLoadingOverlay.classList.remove('hidden');
+        },
+        onSuccess: () => {
+          if (videoLoadingOverlay) videoLoadingOverlay.classList.add('hidden');
+        },
+        onFallback: (fallbackUrl) => {
+          console.warn(`[Tutor] Video load failed for Step ${step} (${guide.videoUrl}), triggering fallback.`);
+          triggerFallback(fallbackUrl);
+        },
+      }
+    );
   }
 
   function triggerFallback(fallbackImageUrl: string): void {
+    videoLoader.cancel();
     if (videoLoadingOverlay) videoLoadingOverlay.classList.add('hidden');
     if (tutorialVideo) {
       tutorialVideo.pause();
@@ -991,6 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function returnToGallery(): void {
+    videoLoader.cancel();
     stopCamera();
     if (tutorialVideo) {
       tutorialVideo.pause();
