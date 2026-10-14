@@ -1098,6 +1098,13 @@ document.addEventListener('DOMContentLoaded', () => {
     stopCamera();
   });
 
+  window.addEventListener('beforeunload', () => {
+    stopCamera();
+    videoLoader.cancel();
+    tutor.destroy();
+    hudOverlay.destroy();
+  });
+
   // --- Initial Mount Execution ---
   fetchFigures();
   refreshCameraList();
