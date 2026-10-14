@@ -59,6 +59,8 @@ export class DetectionOverlayRenderer {
   private dpr: number = 1;
   private animFrameId: number | null = null;
   private cornerLength: number = 18;
+  private resizeObserver: ResizeObserver | null = null;
+  private windowResizeHandler: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement | null, videoElement: HTMLVideoElement | null) {
     this.canvas = canvas;
@@ -73,11 +75,28 @@ export class DetectionOverlayRenderer {
   }
 
   private setupResizeObserver(): void {
-    if (window.ResizeObserver && this.canvas) {
-      const observer = new ResizeObserver(() => this.resize());
+    this.cleanupResizeObserver();
+    const win = typeof window !== 'undefined' ? window : (globalThis as any).window;
+    const ResizeObserverClass = (win && win.ResizeObserver) || (globalThis as any).ResizeObserver;
+    if (ResizeObserverClass && this.canvas) {
+      const observer = new ResizeObserverClass(() => this.resize());
       observer.observe(this.canvas);
-    } else {
-      window.addEventListener('resize', () => this.resize());
+      this.resizeObserver = observer;
+    } else if (win && typeof win.addEventListener === 'function') {
+      this.windowResizeHandler = () => this.resize();
+      win.addEventListener('resize', this.windowResizeHandler);
+    }
+  }
+
+  private cleanupResizeObserver(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+    const win = typeof window !== 'undefined' ? window : (globalThis as any).window;
+    if (this.windowResizeHandler && win && typeof win.removeEventListener === 'function') {
+      win.removeEventListener('resize', this.windowResizeHandler);
+      this.windowResizeHandler = null;
     }
   }
 
@@ -85,7 +104,8 @@ export class DetectionOverlayRenderer {
     if (!this.canvas || !this.ctx) return;
     const rect = this.canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
-    this.dpr = window.devicePixelRatio || 1;
+    const win = typeof window !== 'undefined' ? window : (globalThis as any).window;
+    this.dpr = (win && win.devicePixelRatio) || 1;
     this.width = rect.width;
     this.height = rect.height;
     this.canvas.width = Math.round(rect.width * this.dpr);
@@ -102,6 +122,11 @@ export class DetectionOverlayRenderer {
     if (this.ctx) {
       this.ctx.clearRect(0, 0, this.width, this.height);
     }
+  }
+
+  public destroy(): void {
+    this.reset();
+    this.cleanupResizeObserver();
   }
 
   public setEnabled(enabled: boolean): void {
@@ -231,6 +256,7 @@ export class DetectionOverlayRenderer {
 
   private startRenderLoop(): void {
     if (this.animFrameId !== null) return;
+    if (typeof requestAnimationFrame !== 'function') return;
     const render = () => {
       this.render();
       if (this.currentOpacity > 0.01 || this.targetOpacity > 0.01) {
@@ -245,7 +271,9 @@ export class DetectionOverlayRenderer {
 
   public stopRenderLoop(): void {
     if (this.animFrameId !== null) {
-      cancelAnimationFrame(this.animFrameId);
+      if (typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(this.animFrameId);
+      }
       this.animFrameId = null;
     }
   }
