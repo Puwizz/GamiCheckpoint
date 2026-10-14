@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   TutorialCoordinator,
+  StorageProvider,
 } from './tutorial-coordinator';
 
 describe('TutorialCoordinator', () => {
@@ -174,9 +175,9 @@ describe('TutorialCoordinator', () => {
   it('restores progress respecting dynamic totalSteps for figures with fewer steps (FE-03)', () => {
     const map = new Map<string, string>();
     const storage: StorageProvider = {
-      getItem: (k) => map.get(k) ?? null,
-      setItem: (k, v) => { map.set(k, v); },
-      removeItem: (k) => { map.delete(k); },
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => { map.set(k, v); },
+      removeItem: (k: string) => { map.delete(k); },
     };
 
     storage.setItem(
@@ -201,9 +202,9 @@ describe('TutorialCoordinator', () => {
   it('restores progress respecting dynamic totalSteps for figures with more steps (FE-03)', () => {
     const map = new Map<string, string>();
     const storage: StorageProvider = {
-      getItem: (k) => map.get(k) ?? null,
-      setItem: (k, v) => { map.set(k, v); },
-      removeItem: (k) => { map.delete(k); },
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => { map.set(k, v); },
+      removeItem: (k: string) => { map.delete(k); },
     };
 
     storage.setItem(
