@@ -1814,7 +1814,7 @@ footer {
 
 .figures-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
     gap: var(--space-md);
     width: 100%;
 }
@@ -1829,6 +1829,13 @@ footer {
 .figures-grid:has(.figure-card:only-child) .figure-card {
     width: 100%;
     max-width: 580px;
+}
+
+@media (max-width: 480px) {
+    .figures-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-sm);
+    }
 }
 
 .gallery-loading {
