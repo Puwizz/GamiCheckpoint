@@ -10,8 +10,13 @@ src_dir = Path(__file__).resolve().parent.parent / "src"
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
+root_dir = Path(__file__).resolve().parent.parent
+if str(root_dir) not in sys.path:
+    sys.path.insert(0, str(root_dir))
+
 from visualization import denormalize_image, save_train_samples_grid
 from scripts.dataset.visualize_labels import visualize_image_labels, main as visualize_labels_main
+from scripts.utils.visualize_per_class import draw_detection, main as visualize_per_class_main
 
 
 class MockDataset:
@@ -119,3 +124,64 @@ def test_visualize_labels_main_with_data():
         res = visualize_labels_main(lbl_dir=lbl_dir, img_dir=img_dir, out_dir=out_dir)
         assert res is not None
         assert res.exists()
+
+
+def test_draw_detection_empty():
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    annotated, cls_name = draw_detection(img, "")
+    assert cls_name == "Background"
+    assert annotated.shape == (100, 100, 3)
+
+
+def test_draw_detection_bbox():
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    line = "0 0.5 0.5 0.2 0.2\n"
+    annotated, cls_name = draw_detection(img, line)
+    assert cls_name == "Chk1"
+    assert not np.array_equal(annotated, np.zeros((100, 100, 3), dtype=np.uint8))
+
+
+def test_draw_detection_polygon():
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    line = "2 0.1 0.1 0.2 0.2 0.3 0.1\n"
+    annotated, cls_name = draw_detection(img, line)
+    assert cls_name == "Chk3"
+    assert not np.array_equal(annotated, np.zeros((100, 100, 3), dtype=np.uint8))
+
+
+def test_draw_detection_invalid_parts():
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    annotated, cls_name = draw_detection(img, "invalid")
+    assert cls_name == "Unknown"
+
+    annotated, cls_name = draw_detection(img, "0 a b c d")
+    assert cls_name == "Chk1"
+
+
+def test_visualize_per_class_main_empty_dir():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        lbl_dir = Path(tmp_dir) / "labels"
+        img_dir = Path(tmp_dir) / "images"
+        out_dir = Path(tmp_dir) / "plots"
+        lbl_dir.mkdir()
+        img_dir.mkdir()
+        res = visualize_per_class_main(img_dir=img_dir, lbl_dir=lbl_dir, out_dir=out_dir)
+        assert res is None
+
+
+def test_visualize_per_class_main_with_polygon():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        lbl_dir = Path(tmp_dir) / "labels"
+        img_dir = Path(tmp_dir) / "images"
+        out_dir = Path(tmp_dir) / "plots"
+        lbl_dir.mkdir()
+        img_dir.mkdir()
+
+        dummy_img = np.full((60, 60, 3), 150, dtype=np.uint8)
+        cv2.imwrite(str(img_dir / "chk0.jpg"), dummy_img)
+        (lbl_dir / "chk0.txt").write_text("0 0.1 0.1 0.5 0.2 0.4 0.6 0.2 0.5\n")
+
+        res = visualize_per_class_main(img_dir=img_dir, lbl_dir=lbl_dir, out_dir=out_dir)
+        assert res is not None
+        assert res.exists()
+
