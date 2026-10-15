@@ -141,8 +141,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--wandb-entity",
         type=str,
-        default=os.getenv("WANDB_ENTITY", "puwit-tubt-kmutt"),
-        help="Weights & Biases entity/username (defaults to $WANDB_ENTITY or 'puwit-tubt-kmutt').",
+        default=os.getenv("WANDB_ENTITY", None),
+        help="Weights & Biases entity/username (defaults to $WANDB_ENTITY).",
     )
     parser.add_argument(
         "--wandb-name",
@@ -230,12 +230,14 @@ def main() -> None:
         try:
             import wandb
             wb_name = args.wandb_name if args.wandb_name else args.name
-            wb_run = wandb.init(
-                project=args.wandb_project,
-                name=wb_name,
-                entity=args.wandb_entity,
-                config=vars(args),
-            )
+            init_kwargs = {
+                "project": args.wandb_project,
+                "name": wb_name,
+                "config": vars(args),
+            }
+            if args.wandb_entity:
+                init_kwargs["entity"] = args.wandb_entity
+            wb_run = wandb.init(**init_kwargs)
             print(f"W&B Initialized: Project={args.wandb_project}, Entity={args.wandb_entity}, Name={wb_name}")
             print(f"W&B Dashboard URL: {wb_run.url}")
         except ImportError:

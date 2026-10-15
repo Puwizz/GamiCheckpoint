@@ -6,6 +6,7 @@ to ensure robustness across paper colors, lighting conditions, and cluttered des
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from ultralytics import YOLO
@@ -92,6 +93,12 @@ def parse_args():
         default="",
         help="Weights & Biases run name. Defaults to --name.",
     )
+    parser.add_argument(
+        "--wandb-entity",
+        type=str,
+        default=os.getenv("WANDB_ENTITY", None),
+        help="Weights & Biases entity/username (defaults to $WANDB_ENTITY).",
+    )
     return parser.parse_args()
 
 
@@ -99,16 +106,23 @@ def main():
     args = parse_args()
     wb_run = None
     if args.wandb_project:
-        import wandb
-        wb_name = args.wandb_name if args.wandb_name else args.name
-        wb_run = wandb.init(
-            project=args.wandb_project,
-            name=wb_name,
-            entity="puwit-tubt-kmutt",
-            config=vars(args),
-        )
-        print(f"W&B Initialized: Entity=puwit-tubt-kmutt, Project={args.wandb_project}, Name={wb_name}")
-        print(f"W&B Dashboard URL: {wb_run.url}")
+        try:
+            import wandb
+            wb_name = args.wandb_name if args.wandb_name else args.name
+            init_kwargs = {
+                "project": args.wandb_project,
+                "name": wb_name,
+                "config": vars(args),
+            }
+            if args.wandb_entity:
+                init_kwargs["entity"] = args.wandb_entity
+            wb_run = wandb.init(**init_kwargs)
+            print(f"W&B Initialized: Entity={args.wandb_entity}, Project={args.wandb_project}, Name={wb_name}")
+            print(f"W&B Dashboard URL: {wb_run.url}")
+        except ImportError:
+            print("[INFO] wandb package not installed; skipping W&B logging.")
+        except Exception as e:
+            print(f"[WARNING] W&B initialization skipped or offline: {e}")
 
     print("=" * 60)
     print(f"Starting YOLO Origami Training with model: {args.model}")
