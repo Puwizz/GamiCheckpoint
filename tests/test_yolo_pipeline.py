@@ -121,7 +121,7 @@ def test_check_device_target_exception_handled(monkeypatch, capsys):
 
 def test_curate_for_segmentation_root_not_hardcoded():
     assert "admin" not in str(CURATE_ROOT).lower() or CURATE_ROOT.exists()
-    assert CURATE_ROOT.name == "GamiSenpai"
+    assert (CURATE_ROOT / "scripts").exists()
 
 
 def test_extract_color_sequence_missing_video(capsys):
