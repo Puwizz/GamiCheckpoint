@@ -1,7 +1,8 @@
+import io
 import os
 import sys
 import torch
-from PIL import UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, UploadFile, Query, Path, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -219,12 +220,20 @@ async def predict_frame(
         return make_error_response(status_code=503, detail=f"Model for '{figure}' is not loaded yet.")
 
     try:
+        with Image.open(io.BytesIO(contents)) as img:
+            img.verify()
+    except (UnidentifiedImageError, ValueError, OSError, SyntaxError) as e:
+        return make_error_response(status_code=400, detail=f"Invalid image format: {str(e)}")
+
+    try:
         result = await run_in_threadpool(target_verifier.verify_bytes, contents)
         return result.to_dict()
-    except (UnidentifiedImageError, ValueError) as e:
-        return make_error_response(status_code=400, detail=f"Invalid image format: {str(e)}")
     except Exception as e:
-        return make_error_response(status_code=500, detail=f"Internal inference error: {str(e)}")
+        print(f"[ERROR] Inference failure for figure '{figure}': {e}", file=sys.stderr)
+        return make_error_response(
+            status_code=500,
+            detail="Internal inference error occurred while processing the frame.",
+        )
 
 
 if os.path.exists(STATIC_DIR):

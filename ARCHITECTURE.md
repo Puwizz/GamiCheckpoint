@@ -99,14 +99,14 @@ Computer vision models easily overfit to room-specific background artifacts (e.g
 Compiled via Vite into static assets served directly by FastAPI.
 
 - **`session-engine.ts` (`StepSessionEngine`):**
-  - Controls video capture initialization, resolution negotiation (720p / 1080p), adaptive polling intervals, and frame extraction.
+  - Controls video capture initialization, 720p resolution negotiation, frame extraction, and background prediction dispatching.
   - Implements a leaky-bucket confirmation streak algorithm requiring consecutive positive confirmations before triggering a checkpoint advance.
 - **`tutorial-coordinator.ts` (`TutorialCoordinator`):**
   - Manages the Guided Flow state machine.
-  - Controls step progression guards (preventing skipping checkpoints), audio cue triggers, and voice-assisted folding instructions.
-- **`hud-overlay.ts` (`HudOverlayRenderer`):**
+  - Controls step progression guards (preventing skipping checkpoints) and procedural celebratory chime triggers via Web Audio API.
+- **`hud-overlay.ts` (`DetectionOverlayRenderer`):**
   - High-performance canvas drawing routines for instance segmentation polygon masks, bounding boxes, target ROIs, confidence meters, and camera readiness warning cards.
-- **`video-loader.ts` (`VideoLoader`):**
+- **`video-loader.ts` (`VideoStepLoader`):**
   - Manages reference folding video playback, step looping, and lazy-loading of media assets.
 
 ### 3.2. Gateway Tier (`app/app.py`)
@@ -139,7 +139,7 @@ Built with FastAPI and Starlette concurrency utilities.
 
 - **`src/figure_registry.py` (`FigureRegistry`):**
   - Reads `configs/figures/*.json` and resolves model artifact paths in `checkpoints/` or `weights/`.
-  - Manages in-memory verifier instances with thread-safe `clear_verifiers()` invalidation.
+  - Manages in-memory verifier instances with centralized `clear_verifiers()` invalidation.
 
 - **`src/step_config.py` (Domain Constants):**
   - Canonical checkpoint classes for the origami crane: `Chk1` (Square Base) through `Chk6` (Completed Crane), plus `Chk0_NonOrigami`.
@@ -149,7 +149,7 @@ Built with FastAPI and Starlette concurrency utilities.
 
 ## 4. The Prediction Data Flow
 
-The critical path from browser camera capture to HUD visual feedback completes in under ~40–80ms on GPU (or ~120–180ms on modern CPU):
+The critical path from browser camera capture to HUD visual feedback completes in under ~100ms in typical GPU environments:
 
 ```mermaid
 sequenceDiagram
@@ -221,11 +221,11 @@ flowchart LR
 
 ### Key Deployment Characteristics:
 1. **Separation of Code and Weights:**
-   - Model weights (`.pt` files, ~20–50MB each) are intentionally excluded from git and Docker image layers.
+   - Model weights (`.pt` files, ~21.5MB for YOLO11s-seg) are intentionally excluded from git and Docker image layers.
    - Weights are supplied at runtime via container volume mounts (`/app/checkpoints`), enabling zero-rebuild model promotions and rollbacks.
 2. **Container Orchestrator Integration:**
    - Docker `HEALTHCHECK` periodically queries `http://localhost:8000/api/health` every 30s.
    - Kubernetes liveness and readiness probes can cleanly isolate container startup from model readiness.
 3. **Environment Segregation:**
-   - Set `APP_ENV=production` to lock down developer endpoints (e.g., registry force-reload).
+   - Pre-configured with `APP_ENV=production` by default in the Dockerfile and docker-compose.yml to lock down developer endpoints (e.g., registry force-reload).
    - Configure `CORS_ORIGINS` as a comma-separated list to prevent unauthorized cross-origin requests in production.
