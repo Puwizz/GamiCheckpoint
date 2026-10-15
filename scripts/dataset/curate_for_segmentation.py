@@ -16,7 +16,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-ROOT = Path(r"C:\Users\admin\OneDrive\Desktop\ACS_KMUTT\GamiSenpai")
+ROOT = Path(os.getenv("GAMISENPAI_ROOT", Path(__file__).resolve().parents[2]))
 LBL_DIR = ROOT / "data" / "yolo_dataset" / "labels"
 IMG_DIR = ROOT / "data" / "yolo_dataset" / "images"
 OUT_DIR = ROOT / "data" / "yolo_curated"

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 ROOT = Path(__file__).resolve().parents[2]
-CAPTURES_DIR = Path(r"C:\Users\admin\Videos\Captures")
+CAPTURES_DIR = Path(os.getenv("GAMISENPAI_CAPTURES_DIR", ROOT / "data" / "captures"))
 SESSIONS_DIR = ROOT / "data" / "sessions"
 TARGET_DIR = ROOT / "data" / "background_candidates"
 

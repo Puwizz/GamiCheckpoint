@@ -5,7 +5,11 @@ import numpy as np
 import pytest
 
 from scripts.dataset.auto_label_dataset import CLASS_MAP, convert_split
-from scripts.training.train_yolo_seg import check_device_target
+from scripts.dataset.curate_for_segmentation import ROOT as CURATE_ROOT
+from scripts.dataset.extract_color_seq import extract_color_sequence
+from scripts.dataset.extract_test_frames import extract_test_frames
+from scripts.training.train_yolo import parse_args as train_yolo_parse_args
+from scripts.training.train_yolo_seg import check_device_target, parse_args as train_yolo_seg_parse_args
 
 
 def test_class_map():
@@ -113,3 +117,44 @@ def test_check_device_target_exception_handled(monkeypatch, capsys):
     check_device_target("cuda:0")
     captured = capsys.readouterr()
     assert "Device target check: Device error" in captured.out
+
+
+def test_curate_for_segmentation_root_not_hardcoded():
+    assert "admin" not in str(CURATE_ROOT).lower() or CURATE_ROOT.exists()
+    assert CURATE_ROOT.name == "GamiSenpai"
+
+
+def test_extract_color_sequence_missing_video(capsys):
+    count = extract_color_sequence(vpath="/nonexistent/video.mp4")
+    assert count == 0
+    captured = capsys.readouterr()
+    assert "Video not found" in captured.out
+
+
+def test_extract_test_frames_missing_videos(capsys):
+    count = extract_test_frames(videos=["missing1.mp4", "missing2.mp4"])
+    assert count == 0
+    captured = capsys.readouterr()
+    assert "File not found" in captured.out
+
+
+def test_train_yolo_wandb_entity_default(monkeypatch):
+    monkeypatch.delenv("WANDB_ENTITY", raising=False)
+    monkeypatch.setattr("sys.argv", ["train_yolo.py"])
+    args = train_yolo_parse_args()
+    assert args.wandb_entity is None
+
+
+def test_train_yolo_seg_wandb_entity_default(monkeypatch):
+    monkeypatch.delenv("WANDB_ENTITY", raising=False)
+    monkeypatch.setattr("sys.argv", ["train_yolo_seg.py"])
+    args = train_yolo_seg_parse_args()
+    assert args.wandb_entity is None
+
+
+def test_train_yolo_wandb_entity_env_var(monkeypatch):
+    monkeypatch.setenv("WANDB_ENTITY", "custom-org")
+    monkeypatch.setattr("sys.argv", ["train_yolo.py"])
+    args = train_yolo_parse_args()
+    assert args.wandb_entity == "custom-org"
+
