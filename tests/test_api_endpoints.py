@@ -2,9 +2,18 @@
 tests/test_api_endpoints.py
 Unit tests for FastAPI endpoints: registry caching, validation, error handling, and security.
 """
+from unittest.mock import MagicMock
+import cv2
 from fastapi.testclient import TestClient
+import numpy as np
 import pytest
 import app.app as app_module
+
+
+def create_test_image_bytes():
+    img = np.full((100, 100, 3), 128, dtype=np.uint8)
+    _, buf = cv2.imencode(".jpg", img)
+    return buf.tobytes()
 
 
 @pytest.fixture
@@ -158,6 +167,99 @@ def test_predict_model_not_loaded_503(client, monkeypatch):
     assert "not loaded yet" in response.json()["error"].lower()
 
 
+def test_predict_success_recognized(client, monkeypatch):
+    mock_verifier = MagicMock()
+    mock_res = MagicMock()
+    mock_res.to_dict.return_value = {
+        "frame_ready": True,
+        "recognized": True,
+        "recognition_reason": "ok",
+        "prediction": "Chk1",
+        "step": "Chk1",
+        "step_number": 1,
+        "step_name": "Initial Fold",
+        "confidence": 92.5,
+        "top_gap": 45.0,
+        "recognition_thresholds": {"conf_threshold": 0.55, "min_top_gap": 8.0},
+        "roi": {"applied": True, "bbox": [10, 10, 80, 80]},
+        "top_predictions": [{"class_name": "Chk1", "confidence": 92.5}],
+    }
+    mock_verifier.verify_bytes.return_value = mock_res
+    monkeypatch.setattr(app_module.state, "get_verifier", lambda fig: mock_verifier)
+
+    dummy_img = create_test_image_bytes()
+    response = client.post(
+        "/api/predict?figure=crane",
+        files={"file": ("frame.jpg", dummy_img, "image/jpeg")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["frame_ready"] is True
+    assert data["recognized"] is True
+    assert data["step"] == "Chk1"
+    assert data["step_number"] == 1
+    assert data["confidence"] == 92.5
+    assert data["top_gap"] == 45.0
+    assert "roi" in data
+
+
+def test_predict_success_unrecognized_gap(client, monkeypatch):
+    mock_verifier = MagicMock()
+    mock_res = MagicMock()
+    mock_res.to_dict.return_value = {
+        "frame_ready": True,
+        "recognized": False,
+        "recognition_reason": "ambiguous_step",
+        "prediction": "Chk1",
+        "step": "Chk1",
+        "step_number": 1,
+        "step_name": "Initial Fold",
+        "confidence": 55.0,
+        "top_gap": 3.0,
+        "recognition_thresholds": {"conf_threshold": 0.55, "min_top_gap": 8.0},
+        "roi": {"applied": False, "bbox": None},
+        "top_predictions": [
+            {"class_name": "Chk1", "confidence": 55.0},
+            {"class_name": "Chk2", "confidence": 52.0},
+        ],
+    }
+    mock_verifier.verify_bytes.return_value = mock_res
+    monkeypatch.setattr(app_module.state, "get_verifier", lambda fig: mock_verifier)
+
+    dummy_img = create_test_image_bytes()
+    response = client.post(
+        "/api/predict?figure=crane",
+        files={"file": ("frame.jpg", dummy_img, "image/jpeg")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["frame_ready"] is True
+    assert data["recognized"] is False
+    assert data["recognition_reason"] == "ambiguous_step"
+
+
+def test_predict_success_frame_not_ready(client, monkeypatch):
+    mock_verifier = MagicMock()
+    mock_res = MagicMock()
+    mock_res.to_dict.return_value = {
+        "frame_ready": False,
+        "reason": "frame_too_dark",
+        "metrics": {"mean_luma": 10.0},
+    }
+    mock_verifier.verify_bytes.return_value = mock_res
+    monkeypatch.setattr(app_module.state, "get_verifier", lambda fig: mock_verifier)
+
+    dummy_img = create_test_image_bytes()
+    response = client.post(
+        "/api/predict?figure=crane",
+        files={"file": ("frame.jpg", dummy_img, "image/jpeg")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["frame_ready"] is False
+    assert data["reason"] == "frame_too_dark"
+
+
 def test_consistent_error_response_schema_detail_and_error(client):
     res_404 = client.get("/api/figures/nonexistent_figure")
     assert res_404.status_code == 404
@@ -188,7 +290,6 @@ def test_consistent_error_response_schema_detail_and_error(client):
 
 
 def test_dynamic_verifier_loading_multi_figure(monkeypatch):
-    from unittest.mock import MagicMock
     mock_verifier = MagicMock()
     mock_verifier.classes = ("Chk1", "Chk2", "Chk3")
 
