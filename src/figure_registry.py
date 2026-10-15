@@ -56,7 +56,7 @@ class FigureRegistry:
 
         self._registry = registry
         if force_reload:
-            self._verifiers.clear()
+            self.clear_verifiers()
 
         return self._registry
 
@@ -150,6 +150,10 @@ class FigureRegistry:
 
         return candidate
 
+    def clear_verifiers(self) -> None:
+        """Clear all cached verifier instances."""
+        self._verifiers.clear()
+
     def get_verifier(self, figure_id: str, device: Optional[str] = None) -> Optional[Any]:
         """
         Get or initialize the cached StepVerifier for the requested figure.
@@ -168,14 +172,16 @@ class FigureRegistry:
             return None
 
         classes = tuple(self.get_classes(figure_id))
+        conf_threshold = float(fig.get("conf_threshold", 0.55))
+        imgsz = int(fig.get("imgsz", 640))
         try:
             if model_path.endswith(".pt"):
                 from yolo_verifier import YoloStepVerifier
                 verifier = YoloStepVerifier(
                     model_path=model_path,
                     classes=classes,
-                    conf_threshold=0.55,
-                    imgsz=1024,
+                    conf_threshold=conf_threshold,
+                    imgsz=imgsz,
                     device=device,
                 )
                 self._verifiers[figure_id] = verifier

@@ -24,8 +24,9 @@ from step_config import STEP_CLASSES, STEP_NAMES, step_number
 
 
 # Default gating thresholds
-CAMERA_READY_MIN_LUMA = 40.0
-CAMERA_READY_MIN_STD = 15.0
+CAMERA_READY_MIN_LUMA = 22.0
+CAMERA_READY_DARK_RATIO = 0.70
+CAMERA_READY_MIN_CONTRAST = 6.0
 RECOGNITION_MIN_CONFIDENCE = 45.0
 RECOGNITION_MIN_TOP_GAP = 8.0
 
@@ -59,12 +60,10 @@ def assess_frame_readiness(frame_bgr: np.ndarray) -> Tuple[bool, str, Dict[str, 
         "dark_ratio": round(dark_ratio, 3),
     }
 
-    # Iriun and many virtual cameras output a mostly black placeholder before
-    # the phone connects. Do not let the classifier guess from that screen.
-    if mean_luma < 22 and dark_ratio > 0.70:
+    if mean_luma < CAMERA_READY_MIN_LUMA and dark_ratio > CAMERA_READY_DARK_RATIO:
         return False, "camera_placeholder_or_too_dark", metrics
 
-    if contrast < 6:
+    if contrast < CAMERA_READY_MIN_CONTRAST:
         return False, "frame_has_too_little_detail", metrics
 
     return True, "ok", metrics
@@ -126,7 +125,7 @@ class DetectorAdapter:
     adapter_name: str = "base_detector"
     fusion_mode: str = "native"
 
-    def detect(self, frame_bgr: np.ndarray, imgsz: int = 1024) -> List[Detection]:
+    def detect(self, frame_bgr: np.ndarray, imgsz: int = 640) -> List[Detection]:
         raise NotImplementedError
 
 
@@ -138,7 +137,7 @@ class SyntheticDetectorAdapter(DetectorAdapter):
     def __init__(self, detections: Optional[List[Detection]] = None):
         self.detections = detections or []
 
-    def detect(self, frame_bgr: np.ndarray, imgsz: int = 1024) -> List[Detection]:
+    def detect(self, frame_bgr: np.ndarray, imgsz: int = 640) -> List[Detection]:
         return self.detections
 
 
@@ -158,7 +157,7 @@ class StepVerifier:
         min_top_gap: float = RECOGNITION_MIN_TOP_GAP,
         step_names: Optional[Dict[str, str]] = None,
         conf_threshold: Optional[float] = None,
-        imgsz: int = 1024,
+        imgsz: int = 640,
     ):
         if conf_threshold is not None:
             self.min_confidence = round(conf_threshold * 100.0, 2) if conf_threshold <= 1.0 else round(conf_threshold, 2)

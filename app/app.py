@@ -1,6 +1,7 @@
 import os
 import sys
 import torch
+from PIL import UnidentifiedImageError
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, UploadFile, Query, Path, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,7 +69,7 @@ async def lifespan(app: FastAPI):
     state.load()
     yield
     state.verifiers.clear()
-    state.registry._verifiers.clear()
+    state.registry.clear_verifiers()
 
 
 app = FastAPI(title="GamiSenpai API", lifespan=lifespan)
@@ -117,6 +118,8 @@ async def http_exception_handler(request, exc: HTTPException):
 @app.get("/api/figures")
 async def list_figures(reload: bool = Query(False, description="Force reload registry from disk")):
     if reload:
+        if os.environ.get("APP_ENV") == "production":
+            return make_error_response(403, "Registry reload is disabled in production mode.")
         state.registry.load(force_reload=True)
         state.verifiers.clear()
     return state.registry.list_summaries()
@@ -130,6 +133,23 @@ async def get_figure_detail(
     if not fig:
         raise HTTPException(status_code=404, detail=f"Origami figure '{figure_id}' not found.")
     return fig
+
+
+@app.get("/api/health")
+async def health_check():
+    default_figure = "crane"
+    verifier_ready = state.get_verifier(default_figure) is not None
+    registry_ready = len(state.registry) > 0
+    is_healthy = verifier_ready and registry_ready
+    status_code = 200 if is_healthy else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "healthy" if is_healthy else "unhealthy",
+            "model_loaded": verifier_ready,
+            "figure_count": len(state.registry),
+        },
+    )
 
 
 @app.get("/api/model-info")
@@ -201,8 +221,10 @@ async def predict_frame(
     try:
         result = await run_in_threadpool(target_verifier.verify_bytes, contents)
         return result.to_dict()
-    except Exception as e:
+    except (UnidentifiedImageError, ValueError) as e:
         return make_error_response(status_code=400, detail=f"Invalid image format: {str(e)}")
+    except Exception as e:
+        return make_error_response(status_code=500, detail=f"Internal inference error: {str(e)}")
 
 
 if os.path.exists(STATIC_DIR):
