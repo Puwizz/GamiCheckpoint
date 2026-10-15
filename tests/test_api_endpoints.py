@@ -8,7 +8,9 @@ import app.app as app_module
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    monkeypatch.setattr(app_module.state, "load", lambda: app_module.state.registry.load())
+    monkeypatch.setattr(app_module.state.registry, "get_verifier", lambda *args, **kwargs: None)
     with TestClient(app_module.app) as c:
         yield c
 
@@ -45,7 +47,6 @@ def test_get_figure_detail_not_found(client):
 
 
 def test_get_figure_detail_invalid_path_pattern(client):
-    # Path traversal / invalid characters should be rejected with 422
     response = client.get("/api/figures/crane..bad!path")
     assert response.status_code == 422
 
@@ -88,7 +89,6 @@ def test_predict_unsupported_media_type(client):
 
 
 def test_predict_payload_too_large(client):
-    # 11MB file exceeds 10MB limit
     large_payload = b"x" * (app_module.MAX_UPLOAD_SIZE + 1024)
     response = client.post(
         "/api/predict?figure=crane",
@@ -159,8 +159,6 @@ def test_predict_model_not_loaded_503(client, monkeypatch):
 
 
 def test_consistent_error_response_schema_detail_and_error(client):
-    """APP-05: Verify that error responses consistently provide both 'detail' and 'error' keys."""
-    # 404 from get_figure_detail (HTTPException)
     res_404 = client.get("/api/figures/nonexistent_figure")
     assert res_404.status_code == 404
     data_404 = res_404.json()
@@ -168,7 +166,6 @@ def test_consistent_error_response_schema_detail_and_error(client):
     assert "error" in data_404
     assert data_404["detail"] == data_404["error"]
 
-    # 404 from predict_frame
     res_pred_404 = client.post(
         "/api/predict?figure=nonexistent_figure",
         files={"file": ("test.jpg", b"dummy", "image/jpeg")},
@@ -179,7 +176,6 @@ def test_consistent_error_response_schema_detail_and_error(client):
     assert "error" in data_pred_404
     assert data_pred_404["detail"] == data_pred_404["error"]
 
-    # 400 from empty file upload
     res_pred_400 = client.post(
         "/api/predict?figure=crane",
         files={"file": ("test.jpg", b"", "image/jpeg")},
@@ -192,12 +188,10 @@ def test_consistent_error_response_schema_detail_and_error(client):
 
 
 def test_dynamic_verifier_loading_multi_figure(monkeypatch):
-    """APP-03: Verify that AppState dynamically retrieves and caches verifiers for multi-figure catalog."""
     from unittest.mock import MagicMock
     mock_verifier = MagicMock()
     mock_verifier.classes = ("Chk1", "Chk2", "Chk3")
 
-    # Add a mock figure to registry
     monkeypatch.setitem(app_module.state.registry._registry, "custom_bird", {
         "id": "custom_bird",
         "status": "available",
@@ -208,13 +202,10 @@ def test_dynamic_verifier_loading_multi_figure(monkeypatch):
             {"step_number": 3, "class_name": "Chk3"},
         ]
     })
-    # Ensure it's not yet in app_module.state.verifiers
     app_module.state.verifiers.pop("custom_bird", None)
 
-    # Mock registry.get_verifier to return mock_verifier
     monkeypatch.setattr(app_module.state.registry, "get_verifier", lambda fig_id, device=None: mock_verifier if fig_id == "custom_bird" else None)
 
-    # Retrieve through state
     verifier = app_module.state.get_verifier("custom_bird")
     assert verifier is mock_verifier
     assert "custom_bird" in app_module.state.verifiers
@@ -222,14 +213,11 @@ def test_dynamic_verifier_loading_multi_figure(monkeypatch):
 
 
 def test_multi_figure_get_classes_from_registry():
-    """APP-03: Verify that state.get_classes returns figure-specific classes from registry when available."""
-    # Frog is defined in configs/figures/frog.json with 4 steps: Chk1 to Chk4
     classes = app_module.state.get_classes("frog")
     assert classes == ["Chk1", "Chk2", "Chk3", "Chk4"]
 
 
 def test_list_figures_reload_clears_verifier_cache(client):
-    """APP-03: Verify that calling /api/figures?reload=true flushes state.verifiers cache."""
     app_module.state.verifiers["cached_test"] = "dummy_obj"
     assert "cached_test" in app_module.state.verifiers
 
