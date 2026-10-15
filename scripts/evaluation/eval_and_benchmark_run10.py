@@ -13,6 +13,7 @@ Evaluates Run 10 checkpoint on:
 
 import argparse
 import json
+import sys
 from pathlib import Path
 import numpy as np
 from ultralytics import YOLO
@@ -237,9 +238,8 @@ def main():
                 break
         if not found:
             print(f"[ERROR] Could not find best.pt in candidates: {candidates}")
-            return
+            sys.exit(1)
 
-    # Ensure canonical destination exists
     canonical = ROOT / "checkpoints" / "yolo_runs" / "origami_yolo_run10_yolo11s-seg_v2_bg" / "weights" / "best.pt"
     if model_path != canonical:
         canonical.parent.mkdir(parents=True, exist_ok=True)

@@ -15,6 +15,7 @@ Usage:
 import argparse
 import hashlib
 import re
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Set
@@ -154,7 +155,8 @@ def audit_dataset(dataset_dir: Path):
 def main():
     args = parse_args()
     target = Path(args.dir)
-    audit_dataset(target)
+    passed = audit_dataset(target)
+    sys.exit(0 if passed else 1)
 
 
 if __name__ == "__main__":

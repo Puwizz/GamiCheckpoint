@@ -17,6 +17,7 @@ Usage:
 import argparse
 import json
 import shutil
+import sys
 from pathlib import Path
 from typing import Dict
 import numpy as np
@@ -240,7 +241,7 @@ def main():
                 break
         if not found:
             print(f"[ERROR] Could not find best.pt in candidates: {candidates}")
-            return
+            sys.exit(1)
 
     canonical = ROOT / "checkpoints" / "yolo_runs" / run_name / "weights" / "best.pt"
     if model_path != canonical:
