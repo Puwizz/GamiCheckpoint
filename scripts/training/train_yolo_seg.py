@@ -154,7 +154,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def check_device_target(requested_device: str) -> None:
-    """Validate device selection and warn if GPU was requested but CUDA is unavailable."""
     if requested_device not in {"cpu", "-1"}:
         try:
             import torch
@@ -168,12 +167,13 @@ def check_device_target(requested_device: str) -> None:
                     + "!" * 70 + "\n"
                 )
             else:
-                # Parse first device index only (handles "0", "0,1", "0,1,2" etc.)
-                first_device_idx = int(requested_device.split(",")[0].strip())
+                dev_part = requested_device.split(",")[0].strip()
+                dev_digits = "".join(filter(str.isdigit, dev_part))
+                first_device_idx = int(dev_digits) if dev_digits else 0
                 gpu_name = torch.cuda.get_device_name(first_device_idx)
                 print(f"[INFO] CUDA active on device {first_device_idx}: {gpu_name}")
-        except ImportError:
-            pass
+        except (ImportError, ValueError, Exception) as err:
+            print(f"[INFO] Device target check: {err}")
 
 
 def summarize_and_log_metrics(results: Any, save_dir: Path, wb_run: Any = None) -> None:
