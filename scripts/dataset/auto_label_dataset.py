@@ -1,4 +1,4 @@
-﻿"""
+"""
 auto_label_dataset.py — Auto-annotate existing dataset to YOLO format
 =====================================================================
 Reads images from ImageFolder format (data/step6/five_session/processed or custom),
@@ -111,14 +111,13 @@ def convert_split(split_name: str, source_split_dir: Path, output_dir: Path, cop
             nw = min(1.0, max(0.001, nw))
             nh = min(1.0, max(0.001, nh))
 
-            # Destination paths
-            dest_img_path = out_img_dir / img_path.name
-            dest_lbl_path = out_lbl_dir / f"{img_path.stem}.txt"
+            unique_stem = f"{class_name}_{img_path.stem}"
+            dest_img_path = out_img_dir / f"{unique_stem}{img_path.suffix}"
+            dest_lbl_path = out_lbl_dir / f"{unique_stem}.txt"
 
             if copy_images and not dest_img_path.exists():
                 shutil.copy2(img_path, dest_img_path)
 
-            # Write YOLO annotation: <class_id> <cx> <cy> <nw> <nh>
             with open(dest_lbl_path, "w", encoding="utf-8") as f:
                 f.write(f"{class_id} {cx:.6f} {cy:.6f} {nw:.6f} {nh:.6f}\n")
 
