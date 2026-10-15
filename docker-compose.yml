@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     image: gamisenpai:latest
     container_name: gamisenpai-app
+    environment:
+      - APP_ENV=production
     ports:
       - "8000:8000"
     volumes:

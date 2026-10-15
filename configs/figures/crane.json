@@ -12,6 +12,8 @@
   "thumbnail": "/figures/crane.png",
   "icon": "crane",
   "model_path": "checkpoints/yolo_runs/origami_yolo_run11_yolo11s-seg_v3_bg/weights/best.pt",
+  "conf_threshold": 0.55,
+  "imgsz": 640,
   "total_steps": 6,
   "steps": [
     {

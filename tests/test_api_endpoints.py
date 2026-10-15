@@ -373,4 +373,16 @@ def test_list_figures_reload_forbidden_in_production(client, monkeypatch):
     assert "disabled in production" in res_reload.json()["error"].lower()
 
 
+def test_predict_corrupted_image_returns_400(client, monkeypatch):
+    mock_verifier = MagicMock()
+    monkeypatch.setattr(app_module.state, "get_verifier", lambda fig: mock_verifier)
+    response = client.post(
+        "/api/predict?figure=crane",
+        files={"file": ("corrupt.jpg", b"invalid_binary_header_not_an_image", "image/jpeg")},
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert "invalid image format" in data["error"].lower()
+
+
 

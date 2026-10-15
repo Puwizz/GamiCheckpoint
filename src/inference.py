@@ -27,6 +27,7 @@ from step_config import STEP_CLASSES, STEP_NAMES, step_number
 CAMERA_READY_MIN_LUMA = 22.0
 CAMERA_READY_DARK_RATIO = 0.70
 CAMERA_READY_MIN_CONTRAST = 6.0
+CAMERA_READY_DARK_PIXEL_MAX_LUMA = 25.0
 RECOGNITION_MIN_CONFIDENCE = 45.0
 RECOGNITION_MIN_TOP_GAP = 8.0
 
@@ -52,7 +53,7 @@ def assess_frame_readiness(frame_bgr: np.ndarray) -> Tuple[bool, str, Dict[str, 
 
     mean_luma = float(np.mean(gray))
     contrast = float(np.std(gray))
-    dark_ratio = float(np.mean(gray < 25))
+    dark_ratio = float(np.mean(gray < CAMERA_READY_DARK_PIXEL_MAX_LUMA))
 
     metrics = {
         "mean_luma": round(mean_luma, 2),
