@@ -327,3 +327,50 @@ def test_list_figures_reload_clears_verifier_cache(client):
     assert "cached_test" not in app_module.state.verifiers
 
 
+def test_health_endpoint_healthy(client, monkeypatch):
+    mock_verifier = MagicMock()
+    monkeypatch.setattr(app_module.state, "get_verifier", lambda fig: mock_verifier)
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert data["model_loaded"] is True
+    assert data["figure_count"] > 0
+
+
+def test_health_endpoint_unhealthy(client, monkeypatch):
+    monkeypatch.setattr(app_module.state, "get_verifier", lambda fig: None)
+    response = client.get("/api/health")
+    assert response.status_code == 503
+    data = response.json()
+    assert data["status"] == "unhealthy"
+    assert data["model_loaded"] is False
+
+
+def test_predict_internal_inference_error_500(client, monkeypatch):
+    mock_verifier = MagicMock()
+    mock_verifier.verify_bytes.side_effect = RuntimeError("CUDA out of memory")
+    monkeypatch.setattr(app_module.state, "get_verifier", lambda fig: mock_verifier)
+
+    dummy_img = create_test_image_bytes()
+    response = client.post(
+        "/api/predict?figure=crane",
+        files={"file": ("frame.jpg", dummy_img, "image/jpeg")},
+    )
+    assert response.status_code == 500
+    data = response.json()
+    assert "internal inference error" in data["error"].lower()
+
+
+def test_list_figures_reload_forbidden_in_production(client, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+
+    res_normal = client.get("/api/figures")
+    assert res_normal.status_code == 200
+
+    res_reload = client.get("/api/figures?reload=true")
+    assert res_reload.status_code == 403
+    assert "disabled in production" in res_reload.json()["error"].lower()
+
+
+
