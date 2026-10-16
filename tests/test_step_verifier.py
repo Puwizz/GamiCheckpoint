@@ -185,3 +185,60 @@ def test_step_verifier_handles_mixed_nan_and_valid_confidences():
     assert result.prediction == "Chk2"
     assert result.confidence == 92.0
 
+
+def test_step_verifier_verify_pil_success():
+    from PIL import Image
+
+    adapter = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk1", confidence=0.90, bbox=(10, 20, 100, 120))
+    ])
+    verifier = StepVerifier(
+        detector=adapter,
+        classes=("Chk1", "Chk2", "Chk3", "Chk4", "Chk5", "Chk6"),
+    )
+    bright_array = np.random.randint(100, 200, (480, 640, 3), dtype=np.uint8)
+    pil_img = Image.fromarray(bright_array)
+
+    result = verifier.verify_pil(pil_img)
+    assert result.frame_ready is True
+    assert result.recognized is True
+    assert result.prediction == "Chk1"
+    assert result.confidence == 90.0
+
+
+def test_step_verifier_verify_bytes_success():
+    import io
+    from PIL import Image
+
+    adapter = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk4", confidence=0.85, bbox=(15, 25, 120, 150))
+    ])
+    verifier = StepVerifier(
+        detector=adapter,
+        classes=("Chk1", "Chk2", "Chk3", "Chk4", "Chk5", "Chk6"),
+    )
+    bright_array = np.random.randint(100, 200, (480, 640, 3), dtype=np.uint8)
+    pil_img = Image.fromarray(bright_array)
+    buf = io.BytesIO()
+    pil_img.save(buf, format="JPEG")
+    image_bytes = buf.getvalue()
+
+    result = verifier.verify_bytes(image_bytes)
+    assert result.frame_ready is True
+    assert result.recognized is True
+    assert result.prediction == "Chk4"
+    assert result.step_number == 4
+    assert result.confidence == 85.0
+
+
+def test_step_verifier_verify_bytes_corrupted_raises_error():
+    from PIL import UnidentifiedImageError
+
+    adapter = SyntheticDetectorAdapter(detections=[])
+    verifier = StepVerifier(
+        detector=adapter,
+        classes=("Chk1", "Chk2"),
+    )
+    with pytest.raises((UnidentifiedImageError, Exception)):
+        verifier.verify_bytes(b"invalid_non_image_payload_bytes")
+

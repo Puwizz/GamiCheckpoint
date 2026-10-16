@@ -163,3 +163,53 @@ def test_yolo_verifier_low_confidence_gating(mock_yolo):
     assert res.recognized is False
     assert res.recognition_reason == "low_confidence"
     assert res.confidence == 25.0
+
+
+def test_yolo_verifier_filters_out_spurious_noise_tiny_boxes(mock_yolo):
+    """Verify that detections below min_area_ratio are filtered out as noise."""
+    mock_model_instance = MagicMock()
+    mock_yolo.return_value = mock_model_instance
+
+    # Tiny 5x5 box on 480x640 frame = 25 / 307200 = 0.000081 < 0.015 min_area_ratio
+    tiny_box = MagicMock()
+    tiny_box.conf = [torch.tensor(0.95)]
+    tiny_box.cls = [torch.tensor(0)]
+    tiny_box.xyxy = [torch.tensor([10.0, 10.0, 15.0, 15.0])]
+
+    mock_result = MagicMock()
+    mock_result.boxes = [tiny_box]
+    mock_model_instance.predict.return_value = [mock_result]
+
+    verifier = YoloStepVerifier("dummy_weights.pt", device="cpu", min_area_ratio=0.015)
+    frame = create_bright_frame()
+
+    res = verifier.verify_bgr(frame)
+    assert res.frame_ready is True
+    assert res.recognized is False
+    assert res.recognition_reason == "no_origami_detected"
+    assert res.prediction == "Chk0_NonOrigami"
+
+
+def test_yolo_verifier_custom_figure_classes(mock_yolo):
+    """Verify that YoloStepVerifier properly maps custom figure classes (e.g. 4 frog steps)."""
+    mock_model_instance = MagicMock()
+    mock_yolo.return_value = mock_model_instance
+
+    custom_classes = ("Frog1", "Frog2", "Frog3", "Frog4")
+    mock_box = MagicMock()
+    mock_box.conf = [torch.tensor(0.90)]
+    mock_box.cls = [torch.tensor(1)]  # Index 1 -> "Frog2"
+    mock_box.xyxy = [torch.tensor([50.0, 50.0, 250.0, 250.0])]
+
+    mock_result = MagicMock()
+    mock_result.boxes = [mock_box]
+    mock_model_instance.predict.return_value = [mock_result]
+
+    verifier = YoloStepVerifier("dummy_weights.pt", classes=custom_classes, device="cpu", conf_threshold=0.50)
+    frame = create_bright_frame()
+
+    res = verifier.verify_bgr(frame)
+    assert res.frame_ready is True
+    assert res.recognized is True
+    assert res.prediction == "Frog2"
+    assert res.confidence == 90.0
