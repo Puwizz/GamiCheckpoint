@@ -139,5 +139,57 @@ describe('StepSessionEngine (Deep Module Contract)', () => {
       expect(action.status.description).not.toContain('Square Base');
     }
   });
+
+  it('clamps and updates step state on setStep() and resets streak', () => {
+    // Accumulate streak first
+    const match: VerificationResult = {
+      recognized: true,
+      step: 'Chk1',
+      step_number: 1,
+      confidence: 85,
+    };
+    engine.evaluatePrediction(match);
+    expect(engine.getState().stepStreak).toBe(1);
+
+    // Set step explicitly to 3 with completed steps [1, 2]
+    engine.setStep(3, [1, 2]);
+    const state = engine.getState();
+    expect(state.currentStep).toBe(3);
+    expect(state.stepStreak).toBe(0);
+    expect(state.completedSteps.has(1)).toBe(true);
+    expect(state.completedSteps.has(2)).toBe(true);
+
+    // Test out of range clamping
+    engine.setStep(-5);
+    expect(engine.getState().currentStep).toBe(1);
+
+    engine.setStep(99);
+    expect(engine.getState().currentStep).toBe(7); // totalSteps (6) + 1
+  });
+
+  it('handles frame_ready false gracefully by decaying streak and returning FRAME_NOT_READY', () => {
+    const match: VerificationResult = {
+      recognized: true,
+      step: 'Chk1',
+      step_number: 1,
+      confidence: 85,
+    };
+    engine.evaluatePrediction(match);
+    expect(engine.getState().stepStreak).toBe(1);
+
+    const unreadyFrame: VerificationResult = {
+      frame_ready: false,
+      recognized: false,
+      recognition_reason: 'camera_placeholder_or_too_dark',
+    };
+
+    const action = engine.evaluatePrediction(unreadyFrame);
+    expect(action.type).toBe('FRAME_NOT_READY');
+    expect(engine.getState().stepStreak).toBe(0); // Decayed by 1
+    if (action.type === 'FRAME_NOT_READY') {
+      expect(action.status.kind).toBe('waiting');
+      expect(action.status.title).toBe('Waiting for a real camera frame');
+    }
+  });
 });
 

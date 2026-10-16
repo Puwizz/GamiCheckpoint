@@ -127,3 +127,35 @@ def test_figure_registry_list_summaries_with_none_difficulty_level(tmp_path):
     assert summaries[1]["id"] == "rose"
     assert summaries[1]["difficulty_level"] == 2
 
+
+def test_figure_registry_resolve_model_path_env_override(monkeypatch, tmp_path):
+    reg = FigureRegistry()
+    reg.load()
+
+    # Test cross-platform absolute path override
+    custom_weights_file = tmp_path / "best.pt"
+    custom_weights_path = str(custom_weights_file)
+    monkeypatch.setenv("GAMISENPAI_MODEL_PATH", custom_weights_path)
+
+    resolved = reg.resolve_model_path("crane")
+    assert resolved == custom_weights_path
+
+    # Test relative path override (resolved relative to reg.base_dir)
+    rel_weights = "weights/custom/best.pt"
+    monkeypatch.setenv("GAMISENPAI_MODEL_PATH", rel_weights)
+    resolved_rel = reg.resolve_model_path("crane")
+    assert resolved_rel == os.path.normpath(os.path.join(reg.base_dir, rel_weights))
+
+
+def test_figure_registry_resolve_model_path_nonexistent():
+    reg = FigureRegistry()
+    assert reg.resolve_model_path("nonexistent_figure") is None
+
+
+def test_figure_registry_clear_verifiers():
+    reg = FigureRegistry()
+    reg._verifiers["fake_figure"] = "dummy_verifier"
+    assert "fake_figure" in reg._verifiers
+    reg.clear_verifiers()
+    assert len(reg._verifiers) == 0
+
