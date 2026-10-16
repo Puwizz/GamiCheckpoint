@@ -455,8 +455,10 @@ document.addEventListener('DOMContentLoaded', () => {
     cameraSelect.innerHTML = '';
     if (devices.length === 0) {
       const opt = document.createElement('option');
+      opt.value = '';
       opt.text = 'No cameras found';
       cameraSelect.appendChild(opt);
+      cameraAdapter.setSelectedDeviceId('');
     } else {
       devices.forEach((dev: MediaDeviceInfo, idx: number) => {
         const opt = document.createElement('option');
@@ -464,30 +466,69 @@ document.addEventListener('DOMContentLoaded', () => {
         opt.text = dev.label || `Camera ${idx + 1}`;
         cameraSelect.appendChild(opt);
       });
-      cameraAdapter.setSelectedDeviceId(cameraSelect.value);
+      cameraAdapter.setSelectedDeviceId(cameraSelect.value || '');
     }
     btnRefreshCameras.disabled = false;
   }
 
   async function startCamera(): Promise<void> {
     try {
-      if (cameraSelect) cameraAdapter.setSelectedDeviceId(cameraSelect.value);
+      const chosenDevice = cameraSelect?.value;
+      if (chosenDevice && chosenDevice !== 'No cameras found') {
+        cameraAdapter.setSelectedDeviceId(chosenDevice);
+      } else {
+        cameraAdapter.setSelectedDeviceId('');
+      }
+
       await cameraAdapter.start();
+
+      // Refresh camera list now that camera access is granted (labels will be visible)
+      const devices = await cameraAdapter.getAvailableVideoDevices();
+      if (devices.length > 0 && cameraSelect) {
+        const activeValue = cameraSelect.value;
+        cameraSelect.innerHTML = '';
+        devices.forEach((dev: MediaDeviceInfo, idx: number) => {
+          const opt = document.createElement('option');
+          opt.value = dev.deviceId;
+          opt.text = dev.label || `Camera ${idx + 1}`;
+          if (dev.deviceId === activeValue) opt.selected = true;
+          cameraSelect.appendChild(opt);
+        });
+      }
 
       if (btnStart) btnStart.disabled = true;
       if (btnStop) btnStop.disabled = false;
-      if (cameraSelect) cameraSelect.disabled = true;
+      if (cameraSelect) cameraSelect.disabled = false;
       if (btnRefreshCameras) btnRefreshCameras.disabled = true;
 
-      const selectedLabel = cameraSelect?.options[cameraSelect.selectedIndex]?.text || 'กล้องที่เลือก';
-      setCameraHint(`กำลังสตรีมภาพจาก: ${selectedLabel}`, 'success');
+      const selectedLabel = cameraSelect?.options[cameraSelect.selectedIndex]?.text || 'กล้องหลัก';
+      const actualLabel = cameraAdapter.getActiveTrackLabel();
+      if (
+        actualLabel &&
+        selectedLabel &&
+        selectedLabel !== 'กล้องหลัก' &&
+        !actualLabel.toLowerCase().includes(selectedLabel.toLowerCase()) &&
+        !selectedLabel.toLowerCase().includes(actualLabel.toLowerCase())
+      ) {
+        setCameraHint(`กำลังสตรีมจาก: ${actualLabel} (ไม่สามารถเปิด ${selectedLabel} ได้ อาจถูกโปรแกรมอื่นใช้งานอยู่)`, 'warning');
+      } else {
+        setCameraHint(`กำลังสตรีมภาพจาก: ${actualLabel || selectedLabel}`, 'success');
+      }
 
       if (intervalId !== null) clearInterval(intervalId);
       intervalId = window.setInterval(captureAndPredict, PREDICT_INTERVAL_MS);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Camera start error:', err);
-      showToast('warning', 'ไม่สามารถเข้าถึงกล้องได้ กรุณาตรวจสอบการอนุญาตสิทธิ์ในเบราว์เซอร์');
-      setCameraHint('ไม่สามารถเข้าถึงกล้องได้ กรุณาตรวจสอบสิทธิ์การใช้งานกล้อง', 'warning');
+      let message = 'ไม่สามารถเข้าถึงกล้องได้ กรุณาตรวจสอบการอนุญาตสิทธิ์ในเบราว์เซอร์';
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        message = 'เบราว์เซอร์บล็อกการเข้าถึงกล้อง กรุณาคลิกไอคอนรูปแม่กุญแจที่แถบ URL และกด "อนุญาต (Allow)"';
+      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        message = 'ไม่พบอุปกรณ์กล้องที่พร้อมใช้งาน กรุณาตรวจสอบการเชื่อมต่อกล้อง';
+      } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+        message = 'กล้องกำลังถูกใช้งานโดยแอปพลิเคชันอื่น (เช่น Zoom, Teams, OBS หรือเบราว์เซอร์แท็บอื่น)';
+      }
+      showToast('warning', message);
+      setCameraHint(message, 'warning');
     }
   }
 
@@ -509,6 +550,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnStop) btnStop.disabled = true;
     if (cameraSelect) cameraSelect.disabled = false;
     if (btnRefreshCameras) btnRefreshCameras.disabled = false;
+
+    setCameraHint('กล้องปิดอยู่ — กรุณาเลือกกล้องแล้วกด "เปิดกล้องตรวจจับ"', 'info');
 
     flowVersion += 1;
   }
@@ -1054,8 +1097,14 @@ document.addEventListener('DOMContentLoaded', () => {
   btnStop?.addEventListener('click', stopCamera);
   btnRefreshCameras?.addEventListener('click', refreshCameraList);
   if (cameraSelect) {
-    cameraSelect.addEventListener('change', () => {
+    cameraSelect.addEventListener('change', async () => {
       cameraAdapter.setSelectedDeviceId(cameraSelect.value);
+      const chosenText = cameraSelect.options[cameraSelect.selectedIndex]?.text || '';
+      if (cameraAdapter.isStreaming()) {
+        await startCamera();
+      } else {
+        setCameraHint(`เลือกอุปกรณ์: ${chosenText} (กดปุ่ม "เปิดกล้องตรวจจับ" เพื่อเริ่มใช้งาน)`, 'info');
+      }
     });
   }
 
