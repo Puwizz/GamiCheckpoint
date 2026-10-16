@@ -47,13 +47,49 @@ export class CameraStreamAdapter {
     this.selectedDeviceId = id;
   }
 
+  public getActiveTrackLabel(): string {
+    return this.stream?.getVideoTracks()[0]?.label || '';
+  }
+
   public async start(): Promise<MediaStream> {
     this.stop();
-    const videoConstraints: MediaTrackConstraints = this.selectedDeviceId
-      ? { deviceId: { exact: this.selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-      : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } };
+    const hasValidDevice =
+      this.selectedDeviceId &&
+      this.selectedDeviceId.trim() !== '' &&
+      this.selectedDeviceId !== 'No cameras found';
 
-    this.stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
+    let stream: MediaStream | null = null;
+
+    if (hasValidDevice) {
+      try {
+        // Attempt exact device constraint first to prevent silent fallback to other cameras
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: this.selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        });
+      } catch (exactErr) {
+        console.warn('GamiSenpai: Exact camera constraint failed, attempting ideal fallback:', exactErr);
+      }
+    }
+
+    if (!stream) {
+      const videoConstraints: MediaTrackConstraints = hasValidDevice
+        ? { deviceId: { ideal: this.selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } };
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
+      } catch (primaryErr) {
+        console.warn('GamiSenpai: Primary camera constraints failed, attempting fallback to generic user facingMode:', primaryErr);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        } catch (secondaryErr) {
+          console.warn('GamiSenpai: FacingMode user failed, attempting fallback to bare video: true:', secondaryErr);
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+      }
+    }
+
+    this.stream = stream;
     this.videoElement.srcObject = this.stream;
     return this.stream;
   }
@@ -64,6 +100,9 @@ export class CameraStreamAdapter {
       this.stream = null;
     }
     this.videoElement.srcObject = null;
+    this.videoElement.pause();
+    this.videoElement.removeAttribute('src');
+    this.videoElement.load();
     this.captureCanvas = null;
     this.captureCtx = null;
   }
