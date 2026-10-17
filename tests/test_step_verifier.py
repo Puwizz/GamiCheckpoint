@@ -242,3 +242,52 @@ def test_step_verifier_verify_bytes_corrupted_raises_error():
     with pytest.raises((UnidentifiedImageError, Exception)):
         verifier.verify_bytes(b"invalid_non_image_payload_bytes")
 
+
+def test_step_verifier_coaching_hint_previous_and_future_step():
+    frame = np.full((120, 120, 3), 160, dtype=np.uint8)
+    frame[20:100, 20:100] = 240
+    verifier = StepVerifier(
+        detector=SyntheticDetectorAdapter([Detection(class_name="Chk2", confidence=0.85, bbox=(20, 20, 100, 100))]),
+        conf_threshold=0.55,
+    )
+    res_prev = verifier.verify_bgr(frame, expected_step=3)
+    assert res_prev.coaching_hint == (
+        "Still showing Step 2 (Kite Folds). Perform the next fold to reach Step 3 (Bird Base)."
+    )
+
+    res_future = verifier.verify_bgr(frame, expected_step=1)
+    assert res_future.coaching_hint == (
+        "Detected future Step 2 (Kite Folds), but Step 1 (Square Base) must be verified first."
+    )
+
+
+def test_step_verifier_coaching_hint_ambiguous_with_and_without_runner_up():
+    frame = np.full((120, 120, 3), 160, dtype=np.uint8)
+    frame[20:100, 20:100] = 240
+    verifier = StepVerifier(
+        detector=SyntheticDetectorAdapter([
+            Detection(class_name="Chk2", confidence=0.60, bbox=(20, 20, 100, 100)),
+            Detection(class_name="Chk3", confidence=0.56, bbox=(20, 20, 100, 100)),
+        ]),
+        conf_threshold=0.55,
+        min_top_gap=8.0,
+    )
+    res = verifier.verify_bgr(frame, expected_step=3)
+    assert res.recognition_reason == "ambiguous_step"
+    assert res.coaching_hint == (
+        "Your fold is halfway between Kite Folds and Bird Base. Crease the edges firmly to match Step 3 (Bird Base)."
+    )
+    assert res.to_dict()["coaching_hint"] == res.coaching_hint
+
+    fallback_hint = verifier.build_coaching_hint(
+        expected_step=3,
+        recognized=False,
+        recognition_reason="ambiguous_step",
+        primary_step_num=2,
+        top_predictions=[{"class_name": "Chk2", "step_name": "", "confidence": 60.0}],
+    )
+    assert fallback_hint == (
+        "Your fold looks ambiguous. Crease the edges firmly to match Step 3 (Bird Base)."
+    )
+
+
