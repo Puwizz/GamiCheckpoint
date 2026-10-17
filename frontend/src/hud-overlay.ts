@@ -368,8 +368,8 @@ export class DetectionOverlayRenderer {
     this.ctx.fillStyle = glowColor.replace(/0\.\d+\)/, '0.04)');
     this.ctx.fillRect(x, y, width, height);
 
-    // Box outline
-    this.ctx.strokeStyle = primaryColor;
+    // Box outline (subtle when polygon contour is present, primary when fallback box only)
+    this.ctx.strokeStyle = this.currentPolygon ? glowColor.replace(/0\.\d+\)/, '0.25)') : primaryColor;
     this.ctx.lineWidth = 1.5;
     this.ctx.strokeRect(x, y, width, height);
 
