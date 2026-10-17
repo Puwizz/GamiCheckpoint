@@ -607,11 +607,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const formData = new FormData();
       formData.append('file', blob, 'frame.jpg');
 
-      const response = await fetch(`${API_PREDICT_BASE}?figure=${encodeURIComponent(currentFigureId)}`, {
-        method: 'POST',
-        body: formData,
-        signal: activePredictAbortController.signal,
-      });
+      const response = await fetch(
+        `${API_PREDICT_BASE}?figure=${encodeURIComponent(currentFigureId)}&expected_step=${encodeURIComponent(String(reqStep))}`,
+        {
+          method: 'POST',
+          body: formData,
+          signal: activePredictAbortController.signal,
+        }
+      );
 
       if (!response.ok) {
         let errorMsg = `Server error (${response.status})`;
@@ -675,21 +678,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         case 'UNRECOGNIZED':
           setStatusBox(action.status);
+          if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
           hudOverlay.clear();
           break;
 
         case 'LOW_CONFIDENCE':
           setStatusBox(action.status);
+          if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
           hudOverlay.updateFromAPI(data, reqStep, 'tracking');
           break;
 
         case 'LOCKED_MISMATCH':
           setStatusBox(action.status);
+          if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
           hudOverlay.updateFromAPI(data, reqStep, action.overlayState);
           break;
 
         case 'CONFIRMING':
           setStatusBox(action.status, action.streak);
+          if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
           hudOverlay.updateFromAPI(data, reqStep, 'tracking', `${action.streak}/3`);
           break;
 

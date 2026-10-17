@@ -23,7 +23,7 @@ export type EvaluationAction =
   | { type: 'UNRECOGNIZED'; status: UIStatusState; tip: string }
   | { type: 'LOW_CONFIDENCE'; status: UIStatusState; tip: string; detectedStep: number; confidence: number }
   | { type: 'LOCKED_MISMATCH'; status: UIStatusState; tip: string; detectedStep: number; confidence: number; overlayState: 'tracking' | 'locked' }
-  | { type: 'CONFIRMING'; status: UIStatusState; detectedStep: number; confidence: number; streak: number }
+  | { type: 'CONFIRMING'; status: UIStatusState; detectedStep: number; confidence: number; streak: number; tip?: string }
   | { type: 'MATCH_SUCCESS'; status: UIStatusState; finishedStep: number; nextStep: number | null; confidence: number }
   | { type: 'ALL_COMPLETE'; status: UIStatusState; confidence: number };
 
@@ -151,7 +151,7 @@ export class StepSessionEngine {
       return {
         type: 'UNRECOGNIZED',
         status: this.formatUnrecognizedStatus(data),
-        tip: this.steps[this.currentStep - 1]?.tip || '',
+        tip: data.coaching_hint || this.steps[this.currentStep - 1]?.tip || '',
       };
     }
 
@@ -168,7 +168,7 @@ export class StepSessionEngine {
           title: 'ยังไม่มั่นใจเพียงพอ',
           description: 'โมเดลยังไม่แน่ใจ ถือรอยพับปัจจุบันให้ชัดเจน สว่างขึ้น และอยู่กลางภาพ',
         },
-        tip: this.steps[this.currentStep - 1]?.tip || '',
+        tip: data.coaching_hint || this.steps[this.currentStep - 1]?.tip || '',
         detectedStep: getStepNumber(data.step),
         confidence,
       };
@@ -254,6 +254,7 @@ export class StepSessionEngine {
           detectedStep,
           confidence,
           streak: this.stepStreak,
+          tip: data.coaching_hint || this.steps[this.currentStep - 1]?.tip || '',
         };
       }
 
@@ -304,12 +305,30 @@ export class StepSessionEngine {
       detectedStep,
       confidence,
       streak: this.stepStreak,
+      tip: data.coaching_hint || this.steps[this.currentStep - 1]?.tip || '',
     };
   }
 
   private formatUnrecognizedStatus(data: VerificationResult): UIStatusState {
     const confidence = Number(data.confidence || 0);
     const topGap = Number(data.top_gap || 0);
+
+    if (data.recognition_reason === 'ambiguous_step') {
+      let desc = `โมเดลเห็นความคล้ายคลึงระหว่างขั้นตอน (top-gap ${topGap.toFixed(1)}%) กรุณาจัดกระดาษให้ตรงตามตัวอย่าง`;
+      if (data.top_predictions && data.top_predictions.length >= 2) {
+        const first = data.top_predictions[0].step_name || data.top_predictions[0].class_name;
+        const second = data.top_predictions[1].step_name || data.top_predictions[1].class_name;
+        if (first && second) {
+          desc = `โมเดลเห็นความคล้ายคลึงระหว่าง ${first} และ ${second} (top-gap ${topGap.toFixed(1)}%) กรุณาจัดกระดาษให้ตรงตามตัวอย่าง`;
+        }
+      }
+      return {
+        kind: 'waiting',
+        icon: '?',
+        title: 'รอยพับก้ำกึ่งระหว่างขั้นตอน',
+        description: desc,
+      };
+    }
 
     if (
       data.prediction === 'Chk0_NonOrigami' ||
@@ -339,15 +358,6 @@ export class StepSessionEngine {
         icon: '...',
         title: `เห็นรอยพับแล้ว แต่ยังไม่ชัดเจน (${confidence.toFixed(0)}%)`,
         description: 'กรุณาถือกระดาษให้อยู่กลางกล้อง และปรับมุมให้แสงตกกระทบรอยพับชัดเจนขึ้น',
-      };
-    }
-
-    if (data.recognition_reason === 'ambiguous_step') {
-      return {
-        kind: 'waiting',
-        icon: '?',
-        title: 'รอยพับก้ำกึ่งระหว่างขั้นตอน',
-        description: `โมเดลเห็นความคล้ายคลึงระหว่างขั้นตอน (top-gap ${topGap.toFixed(1)}%) กรุณาจัดกระดาษให้ตรงตามตัวอย่าง`,
       };
     }
 

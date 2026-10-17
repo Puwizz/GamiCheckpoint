@@ -191,5 +191,50 @@ describe('StepSessionEngine (Deep Module Contract)', () => {
       expect(action.status.title).toBe('Waiting for a real camera frame');
     }
   });
+
+  it('includes competing step names in ambiguous_step status and prefers coaching_hint', () => {
+    const engineStep3 = new StepSessionEngine(3);
+
+    const ambiguousData: VerificationResult = {
+      recognized: false,
+      recognition_reason: 'ambiguous_step',
+      prediction: 'Chk2',
+      step: 'Chk2',
+      step_number: 2,
+      confidence: 54,
+      top_gap: 3.5,
+      coaching_hint: 'Your fold is halfway between Kite Folds and Bird Base. Crease the edges firmly to match Step 3 (Bird Base).',
+      top_predictions: [
+        { class_name: 'Chk2', step_number: 2, step_name: 'Kite Folds', confidence: 54 },
+        { class_name: 'Chk3', step_number: 3, step_name: 'Bird Base', confidence: 50.5 },
+      ],
+    };
+
+    const action = engineStep3.evaluatePrediction(ambiguousData);
+    expect(action.type).toBe('UNRECOGNIZED');
+    if (action.type === 'UNRECOGNIZED') {
+      expect(action.status.description).toContain('Kite Folds');
+      expect(action.status.description).toContain('Bird Base');
+      expect(action.tip).toBe(ambiguousData.coaching_hint);
+    }
+  });
+
+  it('falls back cleanly when ambiguous_step has fewer than 2 top_predictions', () => {
+    const engineStep2 = new StepSessionEngine(2);
+    const singleCandidateAmbiguous: VerificationResult = {
+      recognized: false,
+      recognition_reason: 'ambiguous_step',
+      top_gap: 4.0,
+      top_predictions: [{ class_name: 'Chk2', step_number: 2, step_name: '', confidence: 50 }],
+    };
+
+    const action = engineStep2.evaluatePrediction(singleCandidateAmbiguous);
+    expect(action.type).toBe('UNRECOGNIZED');
+    if (action.type === 'UNRECOGNIZED') {
+      expect(action.status.description).toContain('top-gap 4.0%');
+      expect(action.status.description).not.toContain('undefined');
+    }
+  });
 });
+
 
