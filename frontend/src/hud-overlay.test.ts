@@ -170,4 +170,57 @@ describe('DetectionOverlayRenderer', () => {
 
     renderer.destroy();
   });
+
+  it('maps valid polygon points to canvas coordinates and rejects degenerate polygons', () => {
+    const canvas = createMockCanvas();
+    const video = createMockVideo(); // 1280x720 on 640x480 canvas
+    const renderer = new DetectionOverlayRenderer(canvas, video);
+
+    const mapped = renderer.mapPolygonToCanvas([
+      [320, 180],
+      [960, 180],
+      [640, 540],
+    ]);
+    expect(mapped).not.toBeNull();
+    expect(mapped).toHaveLength(3);
+    expect(mapped![0].x).toBeGreaterThanOrEqual(0);
+    expect(mapped![0].y).toBeGreaterThanOrEqual(0);
+
+    expect(renderer.mapPolygonToCanvas([[10, 10], [20, 20]])).toBeNull();
+    expect(renderer.mapPolygonToCanvas([[NaN, 10], [20, 20], [30, 30]])).toBeNull();
+
+    renderer.destroy();
+  });
+
+  it('draws polygon contour path on canvas when roi.polygon has at least 3 vertices', () => {
+    const canvas = createMockCanvas();
+    const video = createMockVideo();
+    const renderer = new DetectionOverlayRenderer(canvas, video);
+    const ctx = canvas.getContext('2d') as any;
+
+    renderer.updateOverlay({
+      roi: {
+        applied: true,
+        bbox: [200, 100, 600, 400],
+        polygon: [
+          [200, 100],
+          [600, 100],
+          [400, 400],
+        ],
+        method: 'yolo_detection',
+      },
+      state: 'tracking',
+      stepNumber: 2,
+      stepName: 'Kite Folds',
+      confidence: 88,
+    });
+
+    (renderer as any).render();
+    expect(ctx.closePath).toHaveBeenCalled();
+    expect(ctx.fill).toHaveBeenCalled();
+    expect(ctx.stroke).toHaveBeenCalled();
+
+    renderer.destroy();
+  });
 });
+

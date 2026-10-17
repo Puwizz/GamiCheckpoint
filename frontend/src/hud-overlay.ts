@@ -41,6 +41,7 @@ export class DetectionOverlayRenderer {
 
   private targetBox: BoxCoords | null = null;
   private currentBox: BoxCoords | null = null;
+  private currentPolygon: { x: number; y: number }[] | null = null;
   private targetOpacity: number = 0;
   private currentOpacity: number = 0;
 
@@ -118,6 +119,7 @@ export class DetectionOverlayRenderer {
     this.currentOpacity = 0;
     this.currentBox = null;
     this.targetBox = null;
+    this.currentPolygon = null;
     this.stopRenderLoop();
     if (this.ctx) {
       this.ctx.clearRect(0, 0, this.width, this.height);
@@ -211,6 +213,7 @@ export class DetectionOverlayRenderer {
     if (!this.currentBox) {
       this.currentBox = { ...mapped };
     }
+    this.currentPolygon = roi.polygon ? this.mapPolygonToCanvas(roi.polygon) : null;
     this.targetOpacity = 1;
     this.startRenderLoop();
 
@@ -227,6 +230,39 @@ export class DetectionOverlayRenderer {
 
   public clear(): void {
     this.targetOpacity = 0;
+    this.currentPolygon = null;
+  }
+
+  public mapPolygonToCanvas(polygon: [number, number][]): { x: number; y: number }[] | null {
+    if (!this.video || !this.width || !this.height || !Array.isArray(polygon)) return null;
+
+    const vw = this.video.videoWidth;
+    const vh = this.video.videoHeight;
+    if (vw === 0 || vh === 0) return null;
+
+    const cw = this.width;
+    const ch = this.height;
+
+    const scale = Math.max(cw / vw, ch / vh);
+    const renderW = vw * scale;
+    const renderH = vh * scale;
+    const offsetX = (cw - renderW) / 2;
+    const offsetY = (ch - renderH) / 2;
+
+    const points: { x: number; y: number }[] = [];
+    for (const pt of polygon) {
+      if (!Array.isArray(pt) || pt.length < 2) continue;
+      const px = Number(pt[0]);
+      const py = Number(pt[1]);
+      if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+
+      const x = Math.max(0, Math.min(cw, px * scale + offsetX));
+      const y = Math.max(0, Math.min(ch, py * scale + offsetY));
+      points.push({ x, y });
+    }
+
+    if (points.length < 3) return null;
+    return points;
   }
 
   private mapBBoxToCanvas(bbox: [number, number, number, number]): BoxCoords | null {
@@ -311,6 +347,21 @@ export class DetectionOverlayRenderer {
     } else if (this.meta.state === 'unrecognized') {
       primaryColor = '#fbbf24';
       glowColor = 'rgba(251, 191, 36, 0.35)';
+    }
+
+    // Polygon contour fill and outline
+    if (this.currentPolygon && this.currentPolygon.length >= 3) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.currentPolygon[0].x, this.currentPolygon[0].y);
+      for (let i = 1; i < this.currentPolygon.length; i++) {
+        this.ctx.lineTo(this.currentPolygon[i].x, this.currentPolygon[i].y);
+      }
+      this.ctx.closePath();
+      this.ctx.fillStyle = glowColor.replace(/0\.\d+\)/, '0.10)');
+      this.ctx.fill();
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeStyle = primaryColor;
+      this.ctx.stroke();
     }
 
     // Box fill
