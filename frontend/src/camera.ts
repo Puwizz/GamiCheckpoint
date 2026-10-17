@@ -17,6 +17,7 @@ export class CameraStreamAdapter {
   private selectedDeviceId: string = '';
   private captureCanvas: HTMLCanvasElement | null = null;
   private captureCtx: CanvasRenderingContext2D | null = null;
+  private startGeneration: number = 0;
 
   constructor(videoElement: HTMLVideoElement) {
     this.videoElement = videoElement;
@@ -51,22 +52,42 @@ export class CameraStreamAdapter {
     return this.stream?.getVideoTracks()[0]?.label || '';
   }
 
+  public getActiveDeviceId(): string {
+    return this.stream?.getVideoTracks()[0]?.getSettings?.()?.deviceId || '';
+  }
+
+  private async acquireStreamForGeneration(
+    constraints: MediaStreamConstraints,
+    generation: number
+  ): Promise<MediaStream> {
+    const acquired = await navigator.mediaDevices.getUserMedia(constraints);
+    if (this.startGeneration !== generation) {
+      acquired.getTracks().forEach((track) => track.stop());
+      const abortErr = new Error('Camera start superseded by a newer operation');
+      abortErr.name = 'AbortError';
+      throw abortErr;
+    }
+    return acquired;
+  }
+
   public async start(): Promise<MediaStream> {
     this.stop();
-    const hasValidDevice =
-      this.selectedDeviceId &&
-      this.selectedDeviceId.trim() !== '' &&
-      this.selectedDeviceId !== 'No cameras found';
+    const generation = this.startGeneration;
+    const hasValidDevice = Boolean(this.selectedDeviceId && this.selectedDeviceId.trim() !== '');
 
     let stream: MediaStream | null = null;
 
     if (hasValidDevice) {
       try {
         // Attempt exact device constraint first to prevent silent fallback to other cameras
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: { exact: this.selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
-      } catch (exactErr) {
+        stream = await this.acquireStreamForGeneration(
+          {
+            video: { deviceId: { exact: this.selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          },
+          generation
+        );
+      } catch (exactErr: unknown) {
+        if ((exactErr as { name?: string })?.name === 'AbortError') throw exactErr;
         console.warn('GamiSenpai: Exact camera constraint failed, attempting ideal fallback:', exactErr);
       }
     }
@@ -77,14 +98,16 @@ export class CameraStreamAdapter {
         : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } };
 
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
-      } catch (primaryErr) {
+        stream = await this.acquireStreamForGeneration({ video: videoConstraints }, generation);
+      } catch (primaryErr: unknown) {
+        if ((primaryErr as { name?: string })?.name === 'AbortError') throw primaryErr;
         console.warn('GamiSenpai: Primary camera constraints failed, attempting fallback to generic user facingMode:', primaryErr);
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        } catch (secondaryErr) {
+          stream = await this.acquireStreamForGeneration({ video: { facingMode: 'user' } }, generation);
+        } catch (secondaryErr: unknown) {
+          if ((secondaryErr as { name?: string })?.name === 'AbortError') throw secondaryErr;
           console.warn('GamiSenpai: FacingMode user failed, attempting fallback to bare video: true:', secondaryErr);
-          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          stream = await this.acquireStreamForGeneration({ video: true }, generation);
         }
       }
     }
@@ -95,6 +118,7 @@ export class CameraStreamAdapter {
   }
 
   public stop(): void {
+    this.startGeneration += 1;
     if (this.stream) {
       this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
@@ -105,6 +129,10 @@ export class CameraStreamAdapter {
     this.videoElement.load();
     this.captureCanvas = null;
     this.captureCtx = null;
+  }
+
+  public hasActiveStream(): boolean {
+    return this.stream !== null;
   }
 
   public isStreaming(): boolean {

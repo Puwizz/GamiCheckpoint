@@ -1,0 +1,201 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { CameraStreamAdapter } from './camera';
+
+interface MockTrack {
+  label: string;
+  stop: ReturnType<typeof vi.fn>;
+  getSettings: () => { deviceId?: string };
+}
+
+function createMockStream(label = 'USB Camera', deviceId = 'cam-1'): {
+  stream: MediaStream;
+  track: MockTrack;
+} {
+  const track: MockTrack = {
+    label,
+    stop: vi.fn(),
+    getSettings: () => ({ deviceId }),
+  };
+  const stream = {
+    getTracks: () => [track],
+    getVideoTracks: () => [track],
+  } as unknown as MediaStream;
+  return { stream, track };
+}
+
+function createMockVideoElement(): HTMLVideoElement {
+  return {
+    srcObject: null,
+    videoWidth: 1280,
+    videoHeight: 720,
+    pause: vi.fn(),
+    removeAttribute: vi.fn(),
+    load: vi.fn(),
+  } as unknown as HTMLVideoElement;
+}
+
+describe('CameraStreamAdapter', () => {
+  const originalNavigator = globalThis.navigator;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: originalNavigator,
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  function mockGetUserMedia(impl: (constraints: MediaStreamConstraints) => Promise<MediaStream>) {
+    const getUserMediaMock = vi.fn(impl);
+    Object.defineProperty(globalThis, 'navigator', {
+      value: {
+        mediaDevices: {
+          getUserMedia: getUserMediaMock,
+          enumerateDevices: vi.fn().mockResolvedValue([]),
+        },
+      },
+      configurable: true,
+      writable: true,
+    });
+    return getUserMediaMock;
+  }
+
+  it('requests exact deviceId constraint first when a valid deviceId is selected', async () => {
+    const { stream } = createMockStream('External Webcam', 'device-ext-99');
+    const getUserMediaMock = mockGetUserMedia(async () => stream);
+    const videoEl = createMockVideoElement();
+    const adapter = new CameraStreamAdapter(videoEl);
+
+    adapter.setSelectedDeviceId('device-ext-99');
+    const result = await adapter.start();
+
+    expect(result).toBe(stream);
+    expect(getUserMediaMock).toHaveBeenCalledTimes(1);
+    expect(getUserMediaMock).toHaveBeenCalledWith({
+      video: {
+        deviceId: { exact: 'device-ext-99' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    });
+    expect(adapter.getActiveTrackLabel()).toBe('External Webcam');
+    expect(adapter.getActiveDeviceId()).toBe('device-ext-99');
+    expect(adapter.hasActiveStream()).toBe(true);
+    expect(adapter.isStreaming()).toBe(true);
+  });
+
+  it('falls back through ideal deviceId, facingMode user, and bare video: true when constraints fail', async () => {
+    const { stream } = createMockStream('Fallback Integrated Camera', 'device-integrated-1');
+    const calls: MediaStreamConstraints[] = [];
+
+    const getUserMediaMock = mockGetUserMedia(async (constraints) => {
+      calls.push(constraints);
+      if (calls.length < 4) {
+        const err = new Error('Constraint failed');
+        err.name = 'OverconstrainedError';
+        throw err;
+      }
+      return stream;
+    });
+
+    const videoEl = createMockVideoElement();
+    const adapter = new CameraStreamAdapter(videoEl);
+    adapter.setSelectedDeviceId('busy-cam-id');
+
+    const result = await adapter.start();
+
+    expect(result).toBe(stream);
+    expect(getUserMediaMock).toHaveBeenCalledTimes(4);
+    expect(calls[0]).toEqual({
+      video: { deviceId: { exact: 'busy-cam-id' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+    expect(calls[1]).toEqual({
+      video: { deviceId: { ideal: 'busy-cam-id' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+    expect(calls[2]).toEqual({
+      video: { facingMode: 'user' },
+    });
+    expect(calls[3]).toEqual({
+      video: true,
+    });
+    expect(adapter.getActiveDeviceId()).toBe('device-integrated-1');
+  });
+
+  it('stops all active tracks and resets video element state on stop() and before re-starting', async () => {
+    const first = createMockStream('Cam 1', 'cam-1');
+    const second = createMockStream('Cam 2', 'cam-2');
+    let count = 0;
+    mockGetUserMedia(async () => {
+      count += 1;
+      return count === 1 ? first.stream : second.stream;
+    });
+
+    const videoEl = createMockVideoElement();
+    const adapter = new CameraStreamAdapter(videoEl);
+
+    adapter.setSelectedDeviceId('cam-1');
+    await adapter.start();
+    expect(first.track.stop).not.toHaveBeenCalled();
+
+    // Switching cameras calls start() which must stop the previous stream first
+    adapter.setSelectedDeviceId('cam-2');
+    await adapter.start();
+    expect(first.track.stop).toHaveBeenCalledTimes(1);
+    expect(videoEl.srcObject).toBe(second.stream);
+
+    adapter.stop();
+    expect(second.track.stop).toHaveBeenCalledTimes(1);
+    expect(videoEl.srcObject).toBeNull();
+    expect(videoEl.pause).toHaveBeenCalled();
+    expect(videoEl.removeAttribute).toHaveBeenCalledWith('src');
+    expect(videoEl.load).toHaveBeenCalled();
+    expect(adapter.hasActiveStream()).toBe(false);
+  });
+
+  it('stops superseded MediaStream tracks when concurrent start() calls overlap', async () => {
+    const first = createMockStream('Slow Cam 1', 'cam-1');
+    const second = createMockStream('Fast Cam 2', 'cam-2');
+
+    let resolveFirst!: (s: MediaStream) => void;
+    const firstPromise = new Promise<MediaStream>((resolve) => {
+      resolveFirst = resolve;
+    });
+
+    let callIndex = 0;
+    mockGetUserMedia(() => {
+      callIndex += 1;
+      if (callIndex === 1) {
+        return firstPromise;
+      }
+      return Promise.resolve(second.stream);
+    });
+
+    const videoEl = createMockVideoElement();
+    const adapter = new CameraStreamAdapter(videoEl);
+
+    adapter.setSelectedDeviceId('cam-1');
+    const p1 = adapter.start();
+
+    // Before p1's getUserMedia resolves, user switches to cam-2 and calls start()
+    adapter.setSelectedDeviceId('cam-2');
+    const p2 = adapter.start();
+
+    const activeStream = await p2;
+    expect(activeStream).toBe(second.stream);
+
+    // Now the stale first getUserMedia resolves
+    resolveFirst(first.stream);
+    await expect(p1).rejects.toMatchObject({ name: 'AbortError' });
+
+    // The stale stream's hardware track MUST be stopped immediately and not overwrite cam-2
+    expect(first.track.stop).toHaveBeenCalledTimes(1);
+    expect(second.track.stop).not.toHaveBeenCalled();
+    expect(adapter.getActiveDeviceId()).toBe('cam-2');
+    expect(videoEl.srcObject).toBe(second.stream);
+  });
+});
