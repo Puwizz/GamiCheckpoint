@@ -73,8 +73,11 @@ class YoloDetectorAdapter(DetectorAdapter):
         h, w = frame_bgr.shape[:2]
         frame_area = float(h * w) if (h * w) > 0 else 1.0
 
+        masks = getattr(results[0], "masks", None)
+        masks_xy = getattr(masks, "xy", None) if masks is not None else None
+
         detections = []
-        for b in boxes:
+        for idx, b in enumerate(boxes):
             xyxy = [int(v) for v in b.xyxy[0].tolist()]
             # Reject tiny spurious noise (< min_area_ratio of camera frame)
             bw = max(0, xyxy[2] - xyxy[0])
@@ -85,11 +88,22 @@ class YoloDetectorAdapter(DetectorAdapter):
             c_idx = int(b.cls[0])
             c_name = self.classes[c_idx] if c_idx < len(self.classes) else f"Chk{c_idx + 1}"
             c_conf = float(b.conf[0])
+
+            poly_pts = None
+            if masks_xy is not None and idx < len(masks_xy):
+                raw_poly = masks_xy[idx]
+                if raw_poly is not None and len(raw_poly) >= 3:
+                    poly_pts = [
+                        (int(round(float(pt[0]))), int(round(float(pt[1]))))
+                        for pt in raw_poly
+                    ]
+
             detections.append(Detection(
                 class_name=c_name,
                 confidence=c_conf,
                 bbox=tuple(xyxy),
                 cls_idx=c_idx,
+                polygon=poly_pts,
             ))
         return detections
 

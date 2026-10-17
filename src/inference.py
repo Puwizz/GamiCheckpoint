@@ -119,6 +119,7 @@ class Detection:
     confidence: float  # Score from 0.0 to 1.0 (or percentage)
     bbox: Optional[Tuple[int, int, int, int]] = None  # (x1, y1, x2, y2)
     cls_idx: Optional[int] = None
+    polygon: Optional[List[Tuple[int, int]]] = None
 
 
 class DetectorAdapter:
@@ -195,7 +196,7 @@ class StepVerifier:
                 "min_confidence": self.min_confidence,
                 "min_top_gap": self.min_top_gap,
             },
-            roi={"applied": False, "method": getattr(self.detector, "adapter_name", "detector"), "bbox": [0, 0, w, h]},
+            roi={"applied": False, "method": getattr(self.detector, "adapter_name", "detector"), "bbox": [0, 0, w, h], "polygon": None},
             top_predictions=[],
             metrics=frame_metrics,
         )
@@ -307,10 +308,21 @@ class StepVerifier:
         else:
             bbox = [0, 0, w, h]
 
+        # ROI Polygon
+        polygon = None
+        if best_cls_name != "Chk0_NonOrigami" and getattr(best_det, "polygon", None):
+            raw_poly = best_det.polygon
+            if len(raw_poly) >= 3:
+                polygon = [
+                    [max(0, min(int(px), w)), max(0, min(int(py), h))]
+                    for px, py in raw_poly
+                ]
+
         roi_data = {
             "applied": (best_cls_name != "Chk0_NonOrigami"),
             "method": getattr(self.detector, "adapter_name", "detector"),
             "bbox": bbox,
+            "polygon": polygon,
             "fusion_mode": getattr(self.detector, "fusion_mode", "native"),
             "confidence": confidence_percent,
         }

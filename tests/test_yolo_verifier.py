@@ -213,3 +213,57 @@ def test_yolo_verifier_custom_figure_classes(mock_yolo):
     assert res.recognized is True
     assert res.prediction == "Frog2"
     assert res.confidence == 90.0
+
+
+def test_yolo_verifier_extracts_and_clamps_segmentation_polygon(mock_yolo):
+    mock_model_instance = MagicMock()
+    mock_yolo.return_value = mock_model_instance
+
+    mock_box = MagicMock()
+    mock_box.conf = [torch.tensor(0.88)]
+    mock_box.cls = [torch.tensor(1)]  # Chk2
+    mock_box.xyxy = [torch.tensor([50.0, 40.0, 200.0, 300.0])]
+
+    mock_masks = MagicMock()
+    mock_masks.xy = [
+        np.array([[-5.2, 40.4], [200.0, 40.0], [700.0, 300.0], [50.0, 500.0]], dtype=np.float32)
+    ]
+
+    mock_result = MagicMock()
+    mock_result.boxes = [mock_box]
+    mock_result.masks = mock_masks
+    mock_model_instance.predict.return_value = [mock_result]
+
+    verifier = YoloStepVerifier("dummy_weights.pt", device="cpu", conf_threshold=0.40)
+    frame = create_bright_frame()  # 480h x 640w
+
+    res = verifier.verify_bgr(frame)
+    assert res.recognized is True
+    assert res.roi["polygon"] == [[0, 40], [200, 40], [640, 300], [50, 480]]
+
+
+def test_yolo_verifier_handles_missing_or_degenerate_masks(mock_yolo):
+    mock_model_instance = MagicMock()
+    mock_yolo.return_value = mock_model_instance
+
+    mock_box = MagicMock()
+    mock_box.conf = [torch.tensor(0.85)]
+    mock_box.cls = [torch.tensor(0)]
+    mock_box.xyxy = [torch.tensor([10.0, 20.0, 120.0, 140.0])]
+
+    mock_masks = MagicMock()
+    mock_masks.xy = [np.array([[10.0, 20.0], [120.0, 140.0]], dtype=np.float32)]  # < 3 points
+
+    mock_result = MagicMock()
+    mock_result.boxes = [mock_box]
+    mock_result.masks = mock_masks
+    mock_model_instance.predict.return_value = [mock_result]
+
+    verifier = YoloStepVerifier("dummy_weights.pt", device="cpu", conf_threshold=0.40)
+    res = verifier.verify_bgr(create_bright_frame())
+    assert res.roi["polygon"] is None
+
+    mock_result.masks = None
+    res_no_mask = verifier.verify_bgr(create_bright_frame())
+    assert res_no_mask.roi["polygon"] is None
+
