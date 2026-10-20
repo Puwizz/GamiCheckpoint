@@ -385,4 +385,32 @@ def test_predict_corrupted_image_returns_400(client, monkeypatch):
     assert "invalid image format" in data["error"].lower()
 
 
+def test_predict_forwards_expected_step_query_param(client, monkeypatch):
+    captured = {}
+
+    class DummyVerifier:
+        def verify_bytes(self, contents, expected_step=None):
+            captured["expected_step"] = expected_step
+            mock_res = MagicMock()
+            mock_res.to_dict.return_value = {
+                "frame_ready": True,
+                "recognized": True,
+                "step": "Chk2",
+                "step_number": 2,
+                "coaching_hint": "Still showing Step 2 (Kite Folds). Perform the next fold to reach Step 3 (Bird Base).",
+            }
+            return mock_res
+
+    monkeypatch.setattr(app_module.state, "get_verifier", lambda fig: DummyVerifier())
+    dummy_img = create_test_image_bytes()
+    response = client.post(
+        "/api/predict?figure=crane&expected_step=3",
+        files={"file": ("frame.jpg", dummy_img, "image/jpeg")},
+    )
+    assert response.status_code == 200
+    assert captured["expected_step"] == 3
+    assert "Still showing Step 2" in response.json()["coaching_hint"]
+
+
+
 

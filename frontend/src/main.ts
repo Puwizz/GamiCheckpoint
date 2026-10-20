@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const webcam = document.getElementById('webcam') as HTMLVideoElement | null;
   const detectionCanvas = document.getElementById('detection-overlay') as HTMLCanvasElement | null;
   const toggleDetectionBox = document.getElementById('toggle-detection-box') as HTMLInputElement | null;
+  const toggleDebugHud = document.getElementById('toggle-debug-hud') as HTMLInputElement | null;
   const roiMethodBadge = document.getElementById('roi-method-badge');
 
   const btnBackToWatch = document.getElementById('btn-back-to-watch') as HTMLButtonElement | null;
@@ -607,11 +608,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const formData = new FormData();
       formData.append('file', blob, 'frame.jpg');
 
-      const response = await fetch(`${API_PREDICT_BASE}?figure=${encodeURIComponent(currentFigureId)}`, {
-        method: 'POST',
-        body: formData,
-        signal: activePredictAbortController.signal,
-      });
+      const response = await fetch(
+        `${API_PREDICT_BASE}?figure=${encodeURIComponent(currentFigureId)}&expected_step=${encodeURIComponent(String(reqStep))}`,
+        {
+          method: 'POST',
+          body: formData,
+          signal: activePredictAbortController.signal,
+        }
+      );
 
       if (!response.ok) {
         let errorMsg = `Server error (${response.status})`;
@@ -675,21 +679,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         case 'UNRECOGNIZED':
           setStatusBox(action.status);
+          if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
           hudOverlay.clear();
           break;
 
         case 'LOW_CONFIDENCE':
           setStatusBox(action.status);
+          if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
           hudOverlay.updateFromAPI(data, reqStep, 'tracking');
           break;
 
         case 'LOCKED_MISMATCH':
           setStatusBox(action.status);
+          if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
           hudOverlay.updateFromAPI(data, reqStep, action.overlayState);
           break;
 
         case 'CONFIRMING':
           setStatusBox(action.status, action.streak);
+          if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
           hudOverlay.updateFromAPI(data, reqStep, 'tracking', `${action.streak}/3`);
           break;
 
@@ -1126,6 +1134,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (toggleDetectionBox) {
     toggleDetectionBox.addEventListener('change', (e) => {
       hudOverlay.setEnabled((e.target as HTMLInputElement).checked);
+    });
+  }
+
+  if (toggleDebugHud) {
+    toggleDebugHud.addEventListener('change', (e) => {
+      hudOverlay.setShowDebugInfo((e.target as HTMLInputElement).checked);
     });
   }
 

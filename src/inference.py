@@ -85,6 +85,7 @@ class VerificationResult:
     recognition_thresholds: Dict[str, float]
     roi: Dict[str, Any]
     top_predictions: List[Dict[str, Any]]
+    coaching_hint: Optional[str] = None
     metrics: Optional[Dict[str, float]] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -109,6 +110,7 @@ class VerificationResult:
             "recognition_thresholds": self.recognition_thresholds,
             "roi": self.roi,
             "top_predictions": self.top_predictions,
+            "coaching_hint": self.coaching_hint,
         }
 
 
@@ -119,6 +121,7 @@ class Detection:
     confidence: float  # Score from 0.0 to 1.0 (or percentage)
     bbox: Optional[Tuple[int, int, int, int]] = None  # (x1, y1, x2, y2)
     cls_idx: Optional[int] = None
+    polygon: Optional[List[Tuple[int, int]]] = None
 
 
 class DetectorAdapter:
@@ -180,7 +183,56 @@ class StepVerifier:
                 "Pass detector=YoloStepVerifier(...) or detector=SyntheticDetectorAdapter(...)."
             )
 
-    def _no_origami_result(self, w: int, h: int, frame_metrics: Dict[str, float]) -> VerificationResult:
+    def build_coaching_hint(
+        self,
+        expected_step: Optional[int],
+        recognized: bool,
+        recognition_reason: str,
+        primary_step_num: Optional[int],
+        top_predictions: List[Dict[str, Any]],
+    ) -> Optional[str]:
+        if expected_step is None or expected_step <= 0:
+            return None
+
+        expected_name = self.step_names.get(f"Chk{expected_step}", f"Step {expected_step}")
+
+        if recognition_reason in ("no_origami_detected", "non_origami"):
+            return f"Place your origami paper clearly in the center of the camera to check Step {expected_step} ({expected_name})."
+
+        if recognition_reason == "low_confidence":
+            return f"Fold detected with low certainty. Hold the paper flat facing the camera under good lighting for Step {expected_step} ({expected_name})."
+
+        if recognition_reason == "ambiguous_step":
+            if len(top_predictions) >= 2:
+                c1 = top_predictions[0].get("step_name") or top_predictions[0].get("class_name")
+                c2 = top_predictions[1].get("step_name") or top_predictions[1].get("class_name")
+                if c1 and c2:
+                    return f"Your fold is halfway between {c1} and {c2}. Crease the edges firmly to match Step {expected_step} ({expected_name})."
+            return f"Your fold looks ambiguous. Crease the edges firmly to match Step {expected_step} ({expected_name})."
+
+        if recognized is True and primary_step_num is not None:
+            if primary_step_num == expected_step:
+                return f"Great! Step {expected_step} ({expected_name}) looks alignment-ready. Hold steady to confirm."
+            if primary_step_num == expected_step - 1:
+                prev_name = self.step_names.get(f"Chk{primary_step_num}", f"Step {primary_step_num}")
+                return f"Still showing Step {primary_step_num} ({prev_name}). Perform the next fold to reach Step {expected_step} ({expected_name})."
+            if primary_step_num < expected_step - 1:
+                det_name = self.step_names.get(f"Chk{primary_step_num}", f"Step {primary_step_num}")
+                return f"Detected earlier Step {primary_step_num} ({det_name}). Follow the guide to fold up to Step {expected_step} ({expected_name})."
+            if primary_step_num > expected_step:
+                det_name = self.step_names.get(f"Chk{primary_step_num}", f"Step {primary_step_num}")
+                return f"Detected future Step {primary_step_num} ({det_name}), but Step {expected_step} ({expected_name}) must be verified first."
+
+        return None
+
+    def _no_origami_result(self, w: int, h: int, frame_metrics: Dict[str, float], expected_step: Optional[int] = None) -> VerificationResult:
+        coaching = self.build_coaching_hint(
+            expected_step=expected_step,
+            recognized=False,
+            recognition_reason="no_origami_detected",
+            primary_step_num=0,
+            top_predictions=[],
+        )
         return VerificationResult(
             frame_ready=True,
             recognized=False,
@@ -195,12 +247,13 @@ class StepVerifier:
                 "min_confidence": self.min_confidence,
                 "min_top_gap": self.min_top_gap,
             },
-            roi={"applied": False, "method": getattr(self.detector, "adapter_name", "detector"), "bbox": [0, 0, w, h]},
+            roi={"applied": False, "method": getattr(self.detector, "adapter_name", "detector"), "bbox": [0, 0, w, h], "polygon": None},
             top_predictions=[],
+            coaching_hint=coaching,
             metrics=frame_metrics,
         )
 
-    def verify_bgr(self, frame_bgr: np.ndarray) -> VerificationResult:
+    def verify_bgr(self, frame_bgr: np.ndarray, expected_step: Optional[int] = None) -> VerificationResult:
         """Verify an OpenCV BGR frame."""
         frame_ready, frame_reason, frame_metrics = assess_frame_readiness(frame_bgr)
         if not frame_ready:
@@ -220,6 +273,7 @@ class StepVerifier:
                 },
                 roi={},
                 top_predictions=[],
+                coaching_hint=None,
                 metrics=frame_metrics,
             )
 
@@ -238,7 +292,7 @@ class StepVerifier:
         h, w = frame_bgr.shape[:2]
 
         if not detections:
-            return self._no_origami_result(w, h, frame_metrics)
+            return self._no_origami_result(w, h, frame_metrics, expected_step=expected_step)
 
         # Aggregate detections per class (highest confidence per unique class)
         class_max_conf: Dict[str, float] = {}
@@ -307,10 +361,21 @@ class StepVerifier:
         else:
             bbox = [0, 0, w, h]
 
+        # ROI Polygon
+        polygon = None
+        if best_cls_name != "Chk0_NonOrigami" and getattr(best_det, "polygon", None):
+            raw_poly = best_det.polygon
+            if len(raw_poly) >= 3:
+                polygon = [
+                    [max(0, min(int(px), w)), max(0, min(int(py), h))]
+                    for px, py in raw_poly
+                ]
+
         roi_data = {
             "applied": (best_cls_name != "Chk0_NonOrigami"),
             "method": getattr(self.detector, "adapter_name", "detector"),
             "bbox": bbox,
+            "polygon": polygon,
             "fusion_mode": getattr(self.detector, "fusion_mode", "native"),
             "confidence": confidence_percent,
         }
@@ -319,6 +384,14 @@ class StepVerifier:
             primary_step_num = step_number(best_cls_name)
         except Exception:
             primary_step_num = None
+
+        coaching = self.build_coaching_hint(
+            expected_step=expected_step,
+            recognized=recognized,
+            recognition_reason=recognition_reason,
+            primary_step_num=primary_step_num,
+            top_predictions=top_predictions,
+        )
 
         return VerificationResult(
             frame_ready=True,
@@ -336,16 +409,17 @@ class StepVerifier:
             },
             roi=roi_data,
             top_predictions=top_predictions,
+            coaching_hint=coaching,
             metrics=frame_metrics,
         )
 
-    def verify_pil(self, image: Image.Image) -> VerificationResult:
+    def verify_pil(self, image: Image.Image, expected_step: Optional[int] = None) -> VerificationResult:
         """Verify a PIL Image."""
         frame_rgb = np.array(image.convert("RGB"))
         frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-        return self.verify_bgr(frame_bgr)
+        return self.verify_bgr(frame_bgr, expected_step=expected_step)
 
-    def verify_bytes(self, contents: bytes) -> VerificationResult:
+    def verify_bytes(self, contents: bytes, expected_step: Optional[int] = None) -> VerificationResult:
         """Verify raw image bytes (e.g. from HTTP upload)."""
         image = Image.open(io.BytesIO(contents)).convert("RGB")
-        return self.verify_pil(image)
+        return self.verify_pil(image, expected_step=expected_step)

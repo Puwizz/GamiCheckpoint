@@ -1,6 +1,7 @@
 import io
 import os
 import sys
+from typing import Optional
 import torch
 from PIL import Image, UnidentifiedImageError
 from contextlib import asynccontextmanager
@@ -96,6 +97,16 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def add_no_cache_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path in ("/", "/index.html") or request.url.path.endswith(".html"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 def make_error_response(status_code: int, detail: str, extra: dict = None) -> JSONResponse:
     """Return a consistent error JSON response containing both RFC-standard 'detail' and 'error' keys."""
     content = {
@@ -171,6 +182,7 @@ async def model_info(
 async def predict_frame(
     file: UploadFile = File(...),
     figure: str = Query("crane", pattern=r"^[a-z0-9_-]{1,64}$", description="Target origami figure ID"),
+    expected_step: Optional[int] = Query(None, ge=1, le=20, description="Current step number expected by the session"),
 ):
     fig_config = state.registry.get(figure)
     if not fig_config:
@@ -225,8 +237,16 @@ async def predict_frame(
     except (UnidentifiedImageError, ValueError, OSError, SyntaxError) as e:
         return make_error_response(status_code=400, detail=f"Invalid image format: {str(e)}")
 
+    def _execute_verifier(verifier, image_bytes, exp_step):
+        if exp_step is not None:
+            try:
+                return verifier.verify_bytes(image_bytes, expected_step=exp_step)
+            except TypeError:
+                return verifier.verify_bytes(image_bytes)
+        return verifier.verify_bytes(image_bytes)
+
     try:
-        result = await run_in_threadpool(target_verifier.verify_bytes, contents)
+        result = await run_in_threadpool(_execute_verifier, target_verifier, contents, expected_step)
         return result.to_dict()
     except Exception as e:
         print(f"[ERROR] Inference failure for figure '{figure}': {e}", file=sys.stderr)

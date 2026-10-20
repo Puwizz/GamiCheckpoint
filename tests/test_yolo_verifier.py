@@ -2,6 +2,7 @@
 tests/test_yolo_verifier.py
 Unit tests for YoloStepVerifier: top_gap calculation, ambiguity gating, and FP16 configuration.
 """
+import cv2
 import sys
 from unittest.mock import MagicMock
 import numpy as np
@@ -213,3 +214,161 @@ def test_yolo_verifier_custom_figure_classes(mock_yolo):
     assert res.recognized is True
     assert res.prediction == "Frog2"
     assert res.confidence == 90.0
+
+
+def test_yolo_verifier_extracts_and_clamps_segmentation_polygon(mock_yolo):
+    mock_model_instance = MagicMock()
+    mock_yolo.return_value = mock_model_instance
+
+    mock_box = MagicMock()
+    mock_box.conf = [torch.tensor(0.88)]
+    mock_box.cls = [torch.tensor(1)]  # Chk2
+    mock_box.xyxy = [torch.tensor([50.0, 40.0, 200.0, 300.0])]
+
+    mock_masks = MagicMock()
+    mock_masks.xy = [
+        np.array([[-5.2, 40.4], [200.0, 40.0], [700.0, 300.0], [50.0, 500.0]], dtype=np.float32)
+    ]
+
+    mock_result = MagicMock()
+    mock_result.boxes = [mock_box]
+    mock_result.masks = mock_masks
+    mock_model_instance.predict.return_value = [mock_result]
+
+    verifier = YoloStepVerifier("dummy_weights.pt", device="cpu", conf_threshold=0.40)
+    frame = create_bright_frame()  # 480h x 640w
+
+    res = verifier.verify_bgr(frame)
+    assert res.recognized is True
+    assert res.roi["polygon"] == [[0, 40], [200, 40], [640, 300], [50, 480]]
+
+
+def test_yolo_verifier_handles_missing_or_degenerate_masks(mock_yolo):
+    mock_model_instance = MagicMock()
+    mock_yolo.return_value = mock_model_instance
+
+    mock_box = MagicMock()
+    mock_box.conf = [torch.tensor(0.85)]
+    mock_box.cls = [torch.tensor(0)]
+    mock_box.xyxy = [torch.tensor([10.0, 20.0, 120.0, 140.0])]
+
+    mock_masks = MagicMock()
+    mock_masks.xy = [np.array([[10.0, 20.0], [120.0, 140.0]], dtype=np.float32)]  # < 3 points
+
+    mock_result = MagicMock()
+    mock_result.boxes = [mock_box]
+    mock_result.masks = mock_masks
+    mock_model_instance.predict.return_value = [mock_result]
+
+    verifier = YoloStepVerifier("dummy_weights.pt", device="cpu", conf_threshold=0.40)
+    res = verifier.verify_bgr(create_bright_frame())
+    assert res.roi["polygon"] is None
+
+    mock_result.masks = None
+    res_no_mask = verifier.verify_bgr(create_bright_frame())
+    assert res_no_mask.roi["polygon"] is None
+
+
+def test_yolo_verifier_passes_retina_masks_true(mock_yolo):
+    mock_model_instance = MagicMock()
+    mock_yolo.return_value = mock_model_instance
+
+    mock_result = MagicMock()
+    mock_result.boxes = []
+    mock_model_instance.predict.return_value = [mock_result]
+
+    verifier = YoloStepVerifier("dummy_weights.pt", device="cpu")
+    verifier.verify_bgr(create_bright_frame())
+
+    assert mock_model_instance.predict.called
+    kwargs = mock_model_instance.predict.call_args.kwargs
+    assert kwargs.get("retina_masks") is True
+
+
+def test_yolo_verifier_smooths_jagged_polygon(mock_yolo):
+    mock_model_instance = MagicMock()
+    mock_yolo.return_value = mock_model_instance
+
+    mock_box = MagicMock()
+    mock_box.conf = [torch.tensor(0.85)]
+    mock_box.cls = [torch.tensor(1)]
+    mock_box.xyxy = [torch.tensor([50.0, 50.0, 300.0, 300.0])]
+
+    # Create a staircase jagged triangle with 60 points
+    jagged_pts = []
+    # Bottom edge (50, 300) to (300, 300)
+    for x in range(50, 301, 10):
+        jagged_pts.append([float(x), 300.0 + (1.0 if x % 20 == 0 else -1.0)])
+    # Right edge (300, 300) to (175, 50)
+    for i, t in enumerate(np.linspace(0, 1, 25)):
+        px = 300.0 * (1 - t) + 175.0 * t + (1.5 if i % 2 == 0 else -1.5)
+        py = 300.0 * (1 - t) + 50.0 * t
+        jagged_pts.append([px, py])
+    # Left edge (175, 50) to (50, 300)
+    for i, t in enumerate(np.linspace(0, 1, 25)):
+        px = 175.0 * (1 - t) + 50.0 * t + (-1.5 if i % 2 == 0 else 1.5)
+        py = 50.0 * (1 - t) + 300.0 * t
+        jagged_pts.append([px, py])
+
+    mock_masks = MagicMock()
+    mock_masks.xy = [np.array(jagged_pts, dtype=np.float32)]
+    mock_masks.data = None
+
+    mock_result = MagicMock()
+    mock_result.boxes = [mock_box]
+    mock_result.masks = mock_masks
+    mock_model_instance.predict.return_value = [mock_result]
+
+    verifier = YoloStepVerifier("dummy_weights.pt", device="cpu", conf_threshold=0.40)
+    res = verifier.verify_bgr(create_bright_frame())
+
+    assert res.recognized is True
+    assert res.roi["polygon"] is not None
+    # Raw had ~76 points; smoothed approxPolyDP should have <= 15 points
+    assert len(res.roi["polygon"]) <= 15
+    assert len(res.roi["polygon"]) >= 3
+
+
+def test_yolo_verifier_refines_mask_with_skin_exclusion(mock_yolo):
+    mock_model_instance = MagicMock()
+    mock_yolo.return_value = mock_model_instance
+
+    # Frame 480x640: White paper square at [100:250, 100:250], Skin region at [250:350, 200:300]
+    frame = np.full((480, 640, 3), 128, dtype=np.uint8)  # gray background
+    # White paper: BGR=(250, 250, 250)
+    frame[100:250, 100:250] = (250, 250, 250)
+    # Skin-colored hand: YCrCb (Y=160, Cr=150, Cb=100) -> approx BGR
+    # Cr=150, Cb=100 in inRange([0, 133, 77], [255, 173, 127])
+    skin_bgr = cv2.cvtColor(np.uint8([[[160, 150, 100]]]), cv2.COLOR_YCrCb2BGR)[0][0]
+    frame[250:350, 200:300] = skin_bgr
+
+    # Mock mask covering BOTH the white paper AND the skin region
+    mask_arr = np.zeros((480, 640), dtype=np.uint8)
+    mask_arr[100:250, 100:250] = 1
+    mask_arr[250:350, 200:300] = 1  # hand region erroneously included in mask
+
+    mock_box = MagicMock()
+    mock_box.conf = [torch.tensor(0.90)]
+    mock_box.cls = [torch.tensor(0)]
+    mock_box.xyxy = [torch.tensor([100.0, 100.0, 300.0, 350.0])]
+
+    mock_masks = MagicMock()
+    mock_masks.data = torch.from_numpy(mask_arr).unsqueeze(0)
+    mock_masks.xy = [np.array([[100, 100], [250, 100], [300, 350], [100, 350]], dtype=np.float32)]
+
+    mock_result = MagicMock()
+    mock_result.boxes = [mock_box]
+    mock_result.masks = mock_masks
+    mock_model_instance.predict.return_value = [mock_result]
+
+    verifier = YoloStepVerifier("dummy_weights.pt", device="cpu", conf_threshold=0.40)
+    res = verifier.verify_bgr(frame)
+
+    assert res.recognized is True
+    poly = res.roi["polygon"]
+    assert poly is not None
+    # Maximum Y in the refined polygon should not extend deep into the hand region (> 260)
+    max_y = max(pt[1] for pt in poly)
+    assert max_y <= 260
+
+

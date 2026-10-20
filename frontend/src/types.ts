@@ -22,6 +22,7 @@ export interface ROIData {
   applied: boolean;
   method?: string;
   bbox?: [number, number, number, number];
+  polygon?: [number, number][] | null;
   fusion_mode?: string;
   crop_weight?: number;
   original_top_confidence?: number;
@@ -52,6 +53,7 @@ export interface VerificationResult {
   };
   roi?: ROIData;
   top_predictions?: PredictionCandidate[];
+  coaching_hint?: string | null;
   error?: string;
 }
 
