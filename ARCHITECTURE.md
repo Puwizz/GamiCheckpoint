@@ -102,12 +102,15 @@ Compiled via Vite into static assets served directly by FastAPI.
   - Controls video capture initialization, 720p resolution negotiation, frame extraction, and background prediction dispatching.
   - Implements a leaky-bucket confirmation streak algorithm requiring consecutive positive confirmations before triggering a checkpoint advance.
 - **`tutorial-coordinator.ts` (`TutorialCoordinator`):**
-  - Manages the Guided Flow state machine.
-  - Controls step progression guards (preventing skipping checkpoints) and procedural celebratory chime triggers via Web Audio API.
+  - Manages the Dual-Stage state machine (`watch` mode for video tutorials vs `verify` mode for webcam AI verification).
+  - Controls step progression guards (preventing skipping checkpoints), procedural celebratory chime triggers via Web Audio API, and 15-second escape hatch timeouts.
 - **`hud-overlay.ts` (`DetectionOverlayRenderer`):**
-  - High-performance canvas drawing routines for instance segmentation polygon masks, bounding boxes, target ROIs, confidence meters, and camera readiness warning cards.
+  - High-performance canvas drawing routines for smooth instance segmentation polygon contours (omitting solid bounding box clutter for clean AR aesthetics).
+  - Renders localized friendly coaching labels (`✓ ขั้นตอนที่ X: [ชื่อ]`, `จัดตำแหน่งกระดาษในกล้อง`) inside a glassmorphism pill badge with glowing status dots.
+  - Supports developer debug mode toggle (`setShowDebugInfo`) to inspect raw confidence percentages and detection methods without overwhelming regular users.
+  - Renders corner viewfinder brackets during fallback bounding box mode.
 - **`video-loader.ts` (`VideoStepLoader`):**
-  - Manages reference folding video playback, step looping, and lazy-loading of media assets.
+  - Manages reference folding video playback, step looping, playback speed regulation (0.5x, 0.75x, 1.0x), and seamless fallback to static PNG reference images upon media absence or network failure.
 
 ### 3.2. Gateway Tier (`app/app.py`)
 Built with FastAPI and Starlette concurrency utilities.
@@ -115,6 +118,8 @@ Built with FastAPI and Starlette concurrency utilities.
 - **`AppState`:**
   - Encapsulates application state, registry access, and cached verifier instances.
   - Lifecycle managed via FastAPI's `@asynccontextmanager lifespan`.
+- **Anti-Cache Middleware (`add_no_cache_headers`):**
+  - Injects `Cache-Control: no-cache, no-store, must-revalidate` for root and HTML paths, guaranteeing client browsers never retain stale bundle references after hot redeployments.
 - **API Endpoints:**
   | Endpoint | Method | Purpose | Error Codes |
   | :--- | :--- | :--- | :--- |

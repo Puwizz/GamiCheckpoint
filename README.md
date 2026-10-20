@@ -54,12 +54,15 @@ Open **`http://localhost:8000`** in your browser.
 flowchart LR
     subgraph Browser["Client (Browser - TypeScript SPA)"]
         Cam["Webcam 1280x720"]
+        Tutor["TutorialCoordinator<br/>(Watch & Verify FSM)"]
+        Video["VideoStepLoader<br/>(MP4 Loop + PNG Fallback)"]
         Engine["StepSessionEngine<br/>(Streak Gate x3)"]
-        Canvas["Canvas HUD Overlay<br/>(Polygon Renderer)"]
+        Canvas["AR Viewfinder HUD<br/>(Smooth Polygon Renderer)"]
     end
 
     subgraph Backend["Backend Gateway (FastAPI)"]
         API["POST /api/predict"]
+        Media["StaticFiles<br/>(/videos, /references)"]
         Registry["Figure Registry<br/>(configs/figures/*.json)"]
     end
 
@@ -68,6 +71,9 @@ flowchart LR
         Gating["3-Tier Gating<br/>(Conf 55% | Gap 8%)"]
     end
 
+    Tutor -->|Watch Mode| Video
+    Video -->|Stream MP4| Media
+    Tutor -->|Verify Mode| Cam
     Cam -->|Frame Blob| Engine
     Engine -->|POST JPEG| API
     API --> Registry
@@ -75,15 +81,23 @@ flowchart LR
     Verifier --> Gating
     Gating -->|Masks + Detections| API
     API -->|HTTP 200 JSON| Engine
-    Engine -->|Draw Overlay| Canvas
+    Engine -->|Streak Confirmed| Tutor
+    Engine -->|Draw AR Polygon| Canvas
 ```
 
-### Verification & Gating Logic
-- **Two-Tier Thresholding:**
+### Dual-Stage Coaching & AR Viewfinder
+- **Dual-Stage Workflow (Watch & Verify):**
+  - **Watch & Fold Stage:** Interactive MP4 folding tutorial with speed controls (0.5x, 0.75x, 1.0x), seamless looping, and automatic fallback to static high-resolution PNG reference guides if media is unavailable.
+  - **Show & Verify Stage:** Real-time webcam pipeline running a 1 FPS throttled loop with 3-hit confirmation streak accumulator.
+- **Refined AR Polygon Viewfinder (`hud-overlay.ts`):**
+  - **Clean Contours:** Directly draws the smooth segmentation polygon contour with anti-jitter epsilon filtering (`approxPolyDP`), omitting solid rectangular bounding box clutter.
+  - **Friendly Coaching Labels:** Displays localized step guidance (e.g. `✓ ขั้นตอนที่ 2: Kite Folds (1/3)`, `จัดตำแหน่งกระดาษในกล้อง`) inside a glassmorphism pill badge with glowing status dot.
+  - **Debug Telemetry Toggle:** Developer mode switch in toolbar to inspect raw confidence percentages and detector algorithms on demand.
+- **Verification & Gating Logic:**
   - **Detector Gating (55%):** Filters out non-origami objects (clothes, furniture, hands). Anything below 55% is marked unrecognized.
   - **Ambiguity Gating (`top_gap` >= 8%):** If the difference between the top prediction and runner-up class is under 8%, the frame is flagged as ambiguous and rejected.
   - **Area Ratio Filter (`min_area_ratio` >= 1.5%):** Suppresses tiny spurious background noise.
-- **Streak Filter:** Requires 3 consecutive consistent prediction frames (`MATCH_STREAK_REQUIRED = 3`) before unlocking the next milestone.
+  - **Streak Filter:** Requires 3 consecutive consistent prediction frames (`MATCH_STREAK_REQUIRED = 3`) before unlocking the next milestone.
 
 ---
 
@@ -186,6 +200,3 @@ GamiSenpai/
 
 ---
 
-## License & Affiliation
-
-Department of Applied Computer Science (ACS), King Mongkut's University of Technology Thonburi (KMUTT).
