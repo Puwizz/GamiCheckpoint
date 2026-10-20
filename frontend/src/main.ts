@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const webcam = document.getElementById('webcam') as HTMLVideoElement | null;
   const detectionCanvas = document.getElementById('detection-overlay') as HTMLCanvasElement | null;
   const toggleDetectionBox = document.getElementById('toggle-detection-box') as HTMLInputElement | null;
+  const toggleDebugHud = document.getElementById('toggle-debug-hud') as HTMLInputElement | null;
   const roiMethodBadge = document.getElementById('roi-method-badge');
 
   const btnBackToWatch = document.getElementById('btn-back-to-watch') as HTMLButtonElement | null;
@@ -1133,6 +1134,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (toggleDetectionBox) {
     toggleDetectionBox.addEventListener('change', (e) => {
       hudOverlay.setEnabled((e.target as HTMLInputElement).checked);
+    });
+  }
+
+  if (toggleDebugHud) {
+    toggleDebugHud.addEventListener('change', (e) => {
+      hudOverlay.setShowDebugInfo((e.target as HTMLInputElement).checked);
     });
   }
 

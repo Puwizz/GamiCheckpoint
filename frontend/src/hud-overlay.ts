@@ -38,6 +38,7 @@ export class DetectionOverlayRenderer {
   private ctx: CanvasRenderingContext2D | null;
   private video: HTMLVideoElement | null;
   private enabled: boolean = true;
+  private showDebugInfo: boolean = false;
 
   private targetBox: BoxCoords | null = null;
   private currentBox: BoxCoords | null = null;
@@ -339,18 +340,19 @@ export class DetectionOverlayRenderer {
     let glowColor = 'rgba(56, 189, 248, 0.35)';
 
     if (this.meta.state === 'matched') {
-      primaryColor = '#4ade80';
-      glowColor = 'rgba(74, 222, 128, 0.40)';
+      primaryColor = '#22c55e';
+      glowColor = 'rgba(34, 197, 94, 0.35)';
     } else if (this.meta.state === 'locked') {
-      primaryColor = '#f87171';
-      glowColor = 'rgba(248, 113, 113, 0.35)';
+      primaryColor = '#fb7185';
+      glowColor = 'rgba(251, 113, 133, 0.30)';
     } else if (this.meta.state === 'unrecognized') {
-      primaryColor = '#fbbf24';
-      glowColor = 'rgba(251, 191, 36, 0.35)';
+      primaryColor = '#f59e0b';
+      glowColor = 'rgba(245, 158, 11, 0.30)';
     }
 
-    // Polygon contour fill and outline
+    // Option 1 (Clean Viewfinder): If polygon exists, omit rectangular bounding box entirely!
     if (this.currentPolygon && this.currentPolygon.length >= 3) {
+      // 1. Soft glassmorphism holographic fill
       this.ctx.beginPath();
       this.ctx.moveTo(this.currentPolygon[0].x, this.currentPolygon[0].y);
       for (let i = 1; i < this.currentPolygon.length; i++) {
@@ -359,84 +361,147 @@ export class DetectionOverlayRenderer {
       this.ctx.closePath();
       this.ctx.fillStyle = glowColor.replace(/0\.\d+\)/, '0.10)');
       this.ctx.fill();
-      this.ctx.lineWidth = 2;
+
+      // 2. Smooth luminous AR stroke with soft ambient glow
+      this.ctx.save();
+      this.ctx.shadowColor = primaryColor;
+      this.ctx.shadowBlur = 10;
+      this.ctx.lineWidth = 2.2;
+      this.ctx.lineJoin = 'round';
+      this.ctx.lineCap = 'round';
       this.ctx.strokeStyle = primaryColor;
+      this.ctx.stroke();
+      this.ctx.restore();
+
+      // 3. Subtle origami vertex nodes (clean CAD / AR touch)
+      for (const pt of this.currentPolygon) {
+        this.ctx.beginPath();
+        this.ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+        this.ctx.fillStyle = primaryColor;
+        this.ctx.fill();
+      }
+    } else {
+      // Fallback: If no polygon available, render minimalist camera viewfinder brackets (no heavy solid box)
+      this.ctx.fillStyle = glowColor.replace(/0\.\d+\)/, '0.04)');
+      this.ctx.fillRect(x, y, width, height);
+
+      const cl = Math.min(this.cornerLength, width / 2 - 2, height / 2 - 2);
+      this.ctx.lineWidth = 2.5;
+      this.ctx.lineCap = 'round';
+      this.ctx.lineJoin = 'round';
+      this.ctx.strokeStyle = primaryColor;
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, y + cl); this.ctx.lineTo(x, y); this.ctx.lineTo(x + cl, y);
+      this.ctx.moveTo(x + width - cl, y); this.ctx.lineTo(x + width, y); this.ctx.lineTo(x + width, y + cl);
+      this.ctx.moveTo(x, y + height - cl); this.ctx.lineTo(x, y + height); this.ctx.lineTo(x + cl, y + height);
+      this.ctx.moveTo(x + width - cl, y + height); this.ctx.lineTo(x + width, y + height); this.ctx.lineTo(x + width, y + height - cl);
       this.ctx.stroke();
     }
 
-    // Box fill
-    this.ctx.fillStyle = glowColor.replace(/0\.\d+\)/, '0.04)');
-    this.ctx.fillRect(x, y, width, height);
+    // Anchor floating pill smoothly right above paper contour (or bbox)
+    let anchorTopY = y;
+    let anchorLeftX = x;
 
-    // Box outline (subtle when polygon contour is present, primary when fallback box only)
-    this.ctx.strokeStyle = this.currentPolygon ? glowColor.replace(/0\.\d+\)/, '0.25)') : primaryColor;
-    this.ctx.lineWidth = 1.5;
-    this.ctx.strokeRect(x, y, width, height);
-
-    // Corners
-    const cl = Math.min(this.cornerLength, width / 2 - 2, height / 2 - 2);
-    this.ctx.lineWidth = 3;
-    this.ctx.strokeStyle = primaryColor;
-    this.ctx.beginPath();
-    this.ctx.moveTo(x, y + cl); this.ctx.lineTo(x, y); this.ctx.lineTo(x + cl, y);
-    this.ctx.moveTo(x + width - cl, y); this.ctx.lineTo(x + width, y); this.ctx.lineTo(x + width, y + cl);
-    this.ctx.moveTo(x, y + height - cl); this.ctx.lineTo(x, y + height); this.ctx.lineTo(x + cl, y + height);
-    this.ctx.moveTo(x + width - cl, y + height); this.ctx.lineTo(x + width, y + height); this.ctx.lineTo(x + width, y + height - cl);
-    this.ctx.stroke();
-
-    // Text Label Pill
-    let labelText = '';
-    if (this.meta.state === 'unrecognized') {
-      labelText = 'Unrecognized';
-    } else if (this.meta.stepNumber) {
-      const stateSuffix = this.meta.state === 'locked' ? ' (Locked)' : this.meta.state === 'matched' ? ' (Matched)' : '';
-      const streakSuffix = this.meta.streakText ? ` ${this.meta.streakText}` : '';
-      labelText = `Step ${this.meta.stepNumber}: ${this.meta.stepName}${streakSuffix}${stateSuffix}`;
-    } else {
-      labelText = 'Origami Paper';
+    if (this.currentPolygon && this.currentPolygon.length >= 3) {
+      let minY = this.currentPolygon[0].y;
+      let minX = this.currentPolygon[0].x;
+      for (let i = 1; i < this.currentPolygon.length; i++) {
+        if (this.currentPolygon[i].y < minY) minY = this.currentPolygon[i].y;
+        if (this.currentPolygon[i].x < minX) minX = this.currentPolygon[i].x;
+      }
+      anchorTopY = minY;
+      anchorLeftX = minX;
     }
 
-    const confText = this.meta.confidence > 0 ? `${this.meta.confidence.toFixed(0)}%` : '';
-    const methodText = this.meta.method ? `• ${this.meta.method}` : '';
-    this.ctx.font = '600 12px "Outfit", sans-serif';
-    const rightText = confText ? `${confText} ${methodText}`.trim() : methodText.replace(/^•\s*/, '');
-    const fullString = `${labelText}   ${rightText}`.trim();
-    const textMetrics = this.ctx.measureText(fullString);
-    const pillWidth = Math.max(140, textMetrics.width + 30);
-    const pillHeight = 24;
-    const pillX = Math.max(6, Math.min(x, this.width - pillWidth - 6));
-    const pillY = y >= pillHeight + 6 ? y - pillHeight - 4 : y + 6;
+    // Friendly label text (removes confusing technical jargon like yolo_detection and % by default)
+    let labelText = '';
+    if (this.meta.state === 'unrecognized') {
+      labelText = 'จัดตำแหน่งกระดาษในกล้อง';
+    } else if (this.meta.stepNumber) {
+      const stepTitle = this.meta.stepName || `ขั้นตอนที่ ${this.meta.stepNumber}`;
+      if (this.meta.state === 'matched') {
+        const streakSuffix = this.meta.streakText ? ` (${this.meta.streakText})` : '';
+        labelText = `✓ ขั้นตอนที่ ${this.meta.stepNumber}: ${stepTitle}${streakSuffix}`;
+      } else if (this.meta.state === 'locked') {
+        labelText = `ตรวจพบ: ขั้นตอนที่ ${this.meta.stepNumber} (${stepTitle})`;
+      } else {
+        const streakSuffix = this.meta.streakText ? ` (${this.meta.streakText})` : '';
+        labelText = `ขั้นตอนที่ ${this.meta.stepNumber}: ${stepTitle}${streakSuffix}`;
+      }
+    } else {
+      labelText = 'กระดาษโอริกามิ';
+    }
 
-    this.ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
-    this.ctx.strokeStyle = primaryColor;
+    // Optional debug text for developer / advanced mode
+    let debugText = '';
+    if (this.showDebugInfo) {
+      const confPart = this.meta.confidence > 0 ? `${Math.round(this.meta.confidence)}%` : '';
+      const methodPart = this.meta.method ? formatRoiMethod(this.meta.method) : '';
+      debugText = [confPart, methodPart].filter(Boolean).join(' • ');
+    }
+
+    this.ctx.font = '600 12.5px "Outfit", "Prompt", -apple-system, BlinkMacSystemFont, sans-serif';
+    const mainMetrics = this.ctx.measureText(labelText);
+    const debugMetrics = debugText ? this.ctx.measureText(debugText) : { width: 0 };
+
+    const pillHeight = 28;
+    const dotSpacing = 26;
+    const debugSpacing = debugText ? debugMetrics.width + 16 : 0;
+    const pillWidth = Math.max(130, mainMetrics.width + dotSpacing + debugSpacing + 18);
+    const pillX = Math.max(8, Math.min(anchorLeftX, this.width - pillWidth - 8));
+    const pillY = anchorTopY >= pillHeight + 8 ? anchorTopY - pillHeight - 6 : anchorTopY + 8;
+
+    // Dark glass pill background
+    this.ctx.save();
+    this.ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    this.ctx.strokeStyle = glowColor.replace(/0\.\d+\)/, '0.40)');
     this.ctx.lineWidth = 1;
+    this.ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    this.ctx.shadowBlur = 6;
+    this.ctx.shadowOffsetY = 2;
     this.ctx.beginPath();
-    this.drawRoundedRect(pillX, pillY, pillWidth, pillHeight, 6);
+    this.drawRoundedRect(pillX, pillY, pillWidth, pillHeight, 14);
     this.ctx.fill();
     this.ctx.stroke();
+    this.ctx.restore();
 
-    // Dot indicator
-    const dotX = pillX + 12;
+    // Glowing status dot
+    const dotX = pillX + 14;
     const dotY = pillY + pillHeight / 2;
-    this.ctx.fillStyle = primaryColor;
+
+    this.ctx.beginPath();
+    this.ctx.arc(dotX, dotY, 6, 0, Math.PI * 2);
+    this.ctx.strokeStyle = glowColor;
+    this.ctx.lineWidth = 1.2;
+    this.ctx.stroke();
+
     this.ctx.beginPath();
     this.ctx.arc(dotX, dotY, 3.5, 0, Math.PI * 2);
+    this.ctx.fillStyle = primaryColor;
     this.ctx.fill();
 
-    // Text
+    // Text label
     this.ctx.fillStyle = '#f8fafc';
     this.ctx.textBaseline = 'middle';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText(labelText, dotX + 8, dotY);
+    this.ctx.fillText(labelText, dotX + 11, dotY);
 
-    if (rightText) {
-      const confX = pillX + pillWidth - 8;
+    if (debugText) {
+      const dbgX = pillX + pillWidth - 10;
       this.ctx.textAlign = 'right';
       this.ctx.fillStyle = primaryColor;
-      this.ctx.fillText(rightText, confX, dotY);
+      this.ctx.fillText(debugText, dbgX, dotY);
     }
 
     this.ctx.restore();
+  }
+
+  public setShowDebugInfo(show: boolean): void {
+    this.showDebugInfo = show;
+  }
+
+  public isDebugInfoEnabled(): boolean {
+    return this.showDebugInfo;
   }
 
   private drawRoundedRect(x: number, y: number, w: number, h: number, r: number): void {

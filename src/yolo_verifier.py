@@ -125,7 +125,7 @@ class YoloDetectorAdapter(DetectorAdapter):
                     main_cnt = max(cnts, key=cv2.contourArea)
                     if cv2.contourArea(main_cnt) >= 50:
                         peri = cv2.arcLength(main_cnt, True)
-                        eps = max(1.0, 0.003 * peri)
+                        eps = max(1.5, 0.006 * peri)
                         approx = cv2.approxPolyDP(main_cnt, eps, True)
                         if len(approx) >= 3:
                             return [
@@ -140,7 +140,7 @@ class YoloDetectorAdapter(DetectorAdapter):
             pts = np.array(raw_poly, dtype=np.float32).reshape((-1, 1, 2))
             if len(raw_poly) > 10:
                 peri = cv2.arcLength(pts, True)
-                eps = max(1.0, 0.003 * peri)
+                eps = max(1.5, 0.006 * peri)
                 approx = cv2.approxPolyDP(pts, eps, True)
                 if len(approx) >= 3:
                     return [

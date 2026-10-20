@@ -219,6 +219,72 @@ describe('DetectionOverlayRenderer', () => {
     expect(ctx.closePath).toHaveBeenCalled();
     expect(ctx.fill).toHaveBeenCalled();
     expect(ctx.stroke).toHaveBeenCalled();
+    // Option 1: Solid rectangular bounding box must NOT be drawn when polygon is present
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+
+    // Default friendly label does not include raw technical keywords like "yolo_detection" or "88%"
+    const labelCalls = ctx.fillText.mock.calls.map((c: any[]) => c[0]);
+    expect(labelCalls.some((txt: string) => txt.includes('ขั้นตอนที่ 2: Kite Folds'))).toBe(true);
+    expect(labelCalls.some((txt: string) => txt.includes('yolo_detection'))).toBe(false);
+
+    renderer.destroy();
+  });
+
+  it('renders debug info only when showDebugInfo is explicitly enabled', () => {
+    const canvas = createMockCanvas();
+    const video = createMockVideo();
+    const renderer = new DetectionOverlayRenderer(canvas, video);
+    const ctx = canvas.getContext('2d') as any;
+
+    renderer.updateOverlay({
+      roi: {
+        applied: true,
+        bbox: [200, 100, 600, 400],
+        polygon: [
+          [200, 100],
+          [600, 100],
+          [400, 400],
+        ],
+        method: 'white_paper',
+      },
+      state: 'tracking',
+      stepNumber: 3,
+      stepName: 'Bird Base',
+      confidence: 95,
+    });
+
+    renderer.setShowDebugInfo(true);
+    expect(renderer.isDebugInfoEnabled()).toBe(true);
+
+    (renderer as any).render();
+    const debugCalls = ctx.fillText.mock.calls.map((c: any[]) => c[0]);
+    expect(debugCalls.some((txt: string) => txt.includes('95%') && txt.includes('White Paper'))).toBe(true);
+
+    renderer.destroy();
+  });
+
+  it('renders viewfinder corners when polygon is absent (fallback bbox mode)', () => {
+    const canvas = createMockCanvas();
+    const video = createMockVideo();
+    const renderer = new DetectionOverlayRenderer(canvas, video);
+    const ctx = canvas.getContext('2d') as any;
+
+    renderer.updateOverlay({
+      roi: {
+        applied: true,
+        bbox: [150, 100, 500, 400],
+        method: 'edges',
+      },
+      state: 'tracking',
+      stepNumber: 1,
+      stepName: 'Square Base',
+    });
+
+    (renderer as any).render();
+    expect(ctx.fillRect).toHaveBeenCalled();
+    expect(ctx.stroke).toHaveBeenCalled();
+    // In fallback mode, only corner brackets are stroked; full strokeRect is omitted
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
 
     renderer.destroy();
   });

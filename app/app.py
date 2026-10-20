@@ -97,6 +97,16 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def add_no_cache_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path in ("/", "/index.html") or request.url.path.endswith(".html"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 def make_error_response(status_code: int, detail: str, extra: dict = None) -> JSONResponse:
     """Return a consistent error JSON response containing both RFC-standard 'detail' and 'error' keys."""
     content = {
