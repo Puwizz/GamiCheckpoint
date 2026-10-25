@@ -25,7 +25,7 @@
       "checkpoint_tip": "วางชิ้นงานให้ปลายเปิดชี้เข้าหากล้อง ตรวจสอบให้สันพับทั้งสี่ด้านเรียบเสมอกัน",
       "reference_description": "Make a neat layered square base and show the open end clearly.",
       "video_url": "/videos/step-1.mp4",
-      "fallback_image_url": "/references/step-1.png",
+      "fallback_image_url": "/references/step-1.jpg",
       "min_confidence": 55
     },
     {
@@ -37,7 +37,7 @@
       "checkpoint_tip": "รอยพับสองข้างต้องประกบชิดเส้นกึ่งกลางพอดี ไม่เกยทับหรือห่างกันจนเกินไป",
       "reference_description": "Look for a long, flat diamond with both side edges folded to the center.",
       "video_url": "/videos/step-2.mp4",
-      "fallback_image_url": "/references/step-2.png",
+      "fallback_image_url": "/references/step-2.jpg",
       "min_confidence": 55
     },
     {
@@ -49,7 +49,7 @@
       "checkpoint_tip": "ด้านล่างจะมีสองแฉกที่แยกออกจากกันอิสระ พร้อมจะดึงขึ้นเป็นคอและหาง",
       "reference_description": "Look for the narrow bird base with two long lower points ready to become neck and tail.",
       "video_url": "/videos/step-3.mp4",
-      "fallback_image_url": "/references/step-3.png",
+      "fallback_image_url": "/references/step-3.jpg",
       "min_confidence": 55
     },
     {
@@ -61,7 +61,7 @@
       "checkpoint_tip": "ทั้งคอและหางยกขึ้นทำมุมสวยงาม ปลายทั้งสองข้างยังตรงอยู่ ยังไม่พับหัวนก",
       "reference_description": "Raise both narrow points into a neck and tail. The neck tip is still straight, with no head fold.",
       "video_url": "/videos/step-4.mp4",
-      "fallback_image_url": "/references/step-4.png",
+      "fallback_image_url": "/references/step-4.jpg",
       "min_confidence": 55
     },
     {
@@ -73,7 +73,7 @@
       "checkpoint_tip": "หัวนกต้องพับชี้ลงมาชัดเจน ขณะที่ปีกทั้งสองข้างยังคงประกบแนบสนิทอยู่",
       "reference_description": "Fold the neck tip down to form the head while the wings remain folded.",
       "video_url": "/videos/step-5.mp4",
-      "fallback_image_url": "/references/step-5.png",
+      "fallback_image_url": "/references/step-5.jpg",
       "min_confidence": 55
     },
     {
@@ -85,7 +85,7 @@
       "checkpoint_tip": "กางปีกทั้งสองข้างหันเข้าหากล้อง ลำตัวพองสวยงาม มองเห็นทั้งหัว คอ ปีก และหางชัดเจน",
       "reference_description": "Show the finished crane: folded head, tail, and both wings clearly visible.",
       "video_url": "/videos/step-6.mp4",
-      "fallback_image_url": "/references/step-6.png",
+      "fallback_image_url": "/references/step-6.jpg",
       "min_confidence": 55
     }
   ]

@@ -79,10 +79,16 @@
                     </div>
 
                     <div id="watch-stage" class="stage-view">
-                        <div class="video-container tutor-video-container">
-                            <video id="tutorial-video" playsinline loop muted></video>
+                        <div class="video-container tutor-video-container" id="tutor-video-container">
+                            <video id="tutorial-video" playsinline muted></video>
+                            <button id="btn-video-overlay-play" class="video-overlay-play-btn" type="button" aria-label="เล่นคลิปวิดีโอ">
+                                <span class="overlay-play-icon">
+                                    <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor"><polygon points="7 4 21 12 7 20 7 4"/></svg>
+                                </span>
+                                <span class="overlay-play-text">กดเพื่อเล่นคลิปสอน</span>
+                            </button>
                             <div id="video-fallback-container" class="video-fallback hidden">
-                                <img id="fallback-guide-image" class="fallback-image" src="/references/step-1.png" alt="Fold guide fallback">
+                                <img id="fallback-guide-image" class="fallback-image" src="/references/step-1.jpg" alt="Fold guide fallback">
                                 <div class="fallback-badge">แสดงภาพประกอบแนะนำ (Image Guide Mode)</div>
                             </div>
                             <div id="video-loading-overlay" class="overlay hidden">
@@ -91,16 +97,25 @@
                             </div>
                         </div>
 
+                        <div class="video-timeline-container" id="video-timeline-container">
+                            <span id="video-time-current" class="video-time-label">00:00</span>
+                            <input type="range" id="video-timeline-slider" class="video-timeline-slider" min="0" max="100" value="0" step="0.1" aria-label="แถบเลื่อนเวลาคลิปวิดีโอ">
+                            <span id="video-time-duration" class="video-time-label">00:00</span>
+                        </div>
+
                         <div class="video-controls-bar">
-                            <button id="btn-video-play" class="btn icon-btn" title="เล่น / หยุดวิดีโอ">หยุด</button>
+                            <button id="btn-video-play" class="btn primary video-play-btn" title="เล่น / หยุดวิดีโอ">
+                                <span class="play-btn-icon">▶</span>
+                                <span class="play-btn-label">เล่นคลิปสอน</span>
+                            </button>
                             <div class="speed-selector" title="ปรับความเร็ววิดีโอ">
                                 <span class="speed-label">ความเร็ว:</span>
                                 <button id="btn-speed-05" class="speed-pill" type="button">0.5x</button>
                                 <button id="btn-speed-075" class="speed-pill" type="button">0.75x</button>
                                 <button id="btn-speed-10" class="speed-pill active" type="button">1.0x</button>
                             </div>
-                            <button id="btn-video-loop" class="btn icon-btn active" title="วนลูปวิดีโอ">วนลูป: เปิด</button>
-                            <button id="btn-video-mute" class="btn icon-btn" title="เปิด/ปิดเสียง">ปิดเสียง</button>
+                            <button id="btn-video-loop" class="btn icon-btn" title="วนลูปวิดีโอ">วนลูป: ปิด</button>
+                            <button id="btn-video-mute" class="btn icon-btn" title="เปิด/ปิดเสียง">เสียง: ปิด</button>
                         </div>
 
                         <div class="watch-action-bar">
@@ -203,7 +218,7 @@
                             <img
                                 id="step-reference-image"
                                 class="reference-image"
-                                src="/references/step-1.png"
+                                src="/references/step-1.jpg"
                                 alt="รูปทรงเป้าหมายขั้นตอนที่ 1"
                             >
                         </div>

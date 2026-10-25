@@ -75,8 +75,10 @@ data/*.zip
 !data/references/*.jpg
 !data/references/*.png
 !frontend/public/references/*.png
+!frontend/public/references/*.jpg
+!frontend/public/references/*.jpeg
 !frontend/public/figures/*
-!frontend/public/videos/*.mp4
+!frontend/public/videos/README.md
 !data/samples/*.png
 !checkpoints/*.png
 !docs/assets/*
@@ -117,10 +119,7 @@ wandb/
 scripts/yolo/generate_seg_dataset.py
 
 # === Documentation & Workflow ===
-PROJECT_STATUS.md
-AI_WORKFLOW.md
-*AI_WORKFLOW*.md
-REVIEW_REPORT.md
+
 *REVIEW_REPORT*.md
 docs/archive/
 docs/deep-dive/
@@ -128,3 +127,4 @@ docs/deep-dive/
 # === Misc ===
 *.log
 *.tmp
+.ua/

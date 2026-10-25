@@ -67,7 +67,7 @@ export class TutorialCoordinator {
   private totalSteps: number = TOTAL_STEPS;
   private guides: StepFoldGuide[] = STEP_FOLD_GUIDES;
   private playbackSpeed: PlaybackSpeed = 1.0;
-  private isLooping: boolean = true;
+  private isLooping: boolean = false;
   private completedSteps: Set<number> = new Set();
   private isCelebrating: boolean = false;
   private escapeHatchActive: boolean = false;

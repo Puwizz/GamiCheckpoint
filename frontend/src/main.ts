@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const watchStage = document.getElementById('watch-stage');
   const verifyStage = document.getElementById('verify-stage');
   const tutorialVideo = document.getElementById('tutorial-video') as HTMLVideoElement | null;
+  const btnVideoOverlayPlay = document.getElementById('btn-video-overlay-play') as HTMLButtonElement | null;
   const videoFallbackContainer = document.getElementById('video-fallback-container');
   const fallbackGuideImage = document.getElementById('fallback-guide-image') as HTMLImageElement | null;
   const videoLoadingOverlay = document.getElementById('video-loading-overlay');
@@ -60,6 +61,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSpeed10 = document.getElementById('btn-speed-10') as HTMLButtonElement | null;
   const btnVideoLoop = document.getElementById('btn-video-loop') as HTMLButtonElement | null;
   const btnVideoMute = document.getElementById('btn-video-mute') as HTMLButtonElement | null;
+  const videoTimelineContainer = document.getElementById('video-timeline-container');
+  const videoTimelineSlider = document.getElementById('video-timeline-slider') as HTMLInputElement | null;
+  const videoTimeCurrent = document.getElementById('video-time-current');
+  const videoTimeDuration = document.getElementById('video-time-duration');
+  let isUserSeeking = false;
   const btnStartVerify = document.getElementById('btn-start-verify') as HTMLButtonElement | null;
 
   // --- DOM Elements: Camera & AI Verification (Verify View) ---
@@ -165,6 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (btnVideoLoop) {
         btnVideoLoop.textContent = loop ? 'วนลูป: เปิด' : 'วนลูป: ปิด';
         btnVideoLoop.classList.toggle('active', loop);
+      }
+      if (loop && btnStartVerify) {
+        btnStartVerify.classList.remove('ready-nudge');
       }
     },
     onEscapeHatch: (active: boolean) => {
@@ -341,7 +350,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (referenceStepTitle) referenceStepTitle.textContent = `Step ${currentStep}: ${currentDef.name}`;
       if (referenceStepDescription) referenceStepDescription.textContent = currentDef.reference;
       if (stepReferenceImage) {
-        stepReferenceImage.src = guide?.fallbackImageUrl || `/references/step-${currentStep}.png`;
+        const targetSrc = guide?.fallbackImageUrl || `/references/step-${currentStep}.jpg`;
+        stepReferenceImage.onerror = () => {
+          stepReferenceImage.onerror = null;
+          if (stepReferenceImage.src.endsWith('.jpg')) {
+            stepReferenceImage.src = stepReferenceImage.src.replace(/\.jpg$/, '.png');
+          } else if (stepReferenceImage.src.endsWith('.png')) {
+            stepReferenceImage.src = stepReferenceImage.src.replace(/\.png$/, '.jpg');
+          }
+        };
+        stepReferenceImage.src = targetSrc;
         stepReferenceImage.alt = `รูปทรงเป้าหมายขั้นตอนที่ ${currentStep}: ${guide?.thaiName || currentDef.name}`;
       }
     }
@@ -359,12 +377,98 @@ document.addEventListener('DOMContentLoaded', () => {
     if (speed === 1.0 && btnSpeed10) btnSpeed10.classList.add('active');
   }
 
+  function formatVideoTime(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds < 0) return '00:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  // --- Video Playback State & UI ---
+  type VideoPlayState = 'paused' | 'playing' | 'ended';
+
+  function updateVideoPlayUI(state: VideoPlayState): void {
+    const isPlaying = state === 'playing';
+    const isEnded = state === 'ended';
+
+    // 1. Center Overlay Play Button
+    if (btnVideoOverlayPlay) {
+      if (isPlaying) {
+        btnVideoOverlayPlay.classList.add('hidden');
+        btnVideoOverlayPlay.classList.remove('is-paused');
+      } else {
+        btnVideoOverlayPlay.classList.remove('hidden');
+        const isMidPlaybackPause = !isEnded && (tutorialVideo?.currentTime || 0) > 0;
+        btnVideoOverlayPlay.classList.toggle('is-paused', isMidPlaybackPause);
+        const iconSpan = btnVideoOverlayPlay.querySelector('.overlay-play-icon');
+        const textSpan = btnVideoOverlayPlay.querySelector('.overlay-play-text');
+
+        if (isEnded) {
+          btnVideoOverlayPlay.classList.add('is-replay');
+          if (iconSpan) {
+            iconSpan.classList.add('is-replay');
+            iconSpan.innerHTML = '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+          }
+          if (textSpan) {
+            textSpan.textContent = '↻ เล่นอีกครั้ง';
+          }
+        } else {
+          btnVideoOverlayPlay.classList.remove('is-replay');
+          if (iconSpan) {
+            iconSpan.classList.remove('is-replay');
+            iconSpan.innerHTML = '<svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor"><polygon points="7 4 21 12 7 20 7 4"/></svg>';
+          }
+          if (textSpan) {
+            textSpan.textContent = 'กดเพื่อเล่นคลิปสอน';
+          }
+        }
+      }
+    }
+
+    // 2. Toolbar Play Button
+    if (btnVideoPlay) {
+      btnVideoPlay.classList.toggle('is-playing', isPlaying);
+      btnVideoPlay.classList.toggle('is-replay', isEnded);
+
+      if (isPlaying) {
+        btnVideoPlay.innerHTML = '<span class="play-btn-icon">⏸</span><span class="play-btn-label">หยุดชั่วคราว</span>';
+      } else if (isEnded) {
+        btnVideoPlay.innerHTML = '<span class="play-btn-icon">↻</span><span class="play-btn-label">เล่นอีกครั้ง</span>';
+      } else {
+        btnVideoPlay.innerHTML = '<span class="play-btn-icon">▶</span><span class="play-btn-label">เล่นคลิปสอน</span>';
+      }
+    }
+
+    // 3. CTA Verify Nudge (subtle pulse when video ends with loop off)
+    if (btnStartVerify) {
+      if (isEnded) {
+        btnStartVerify.classList.add('ready-nudge');
+      } else {
+        btnStartVerify.classList.remove('ready-nudge');
+      }
+    }
+  }
+
+  function toggleVideoPlayback(): void {
+    if (!tutorialVideo) return;
+    if (tutorialVideo.paused || tutorialVideo.ended) {
+      if (tutorialVideo.ended) {
+        tutorialVideo.currentTime = 0;
+      }
+      tutorialVideo.play().catch((err) => {
+        console.warn('[Tutor] Video play request was prevented:', err);
+      });
+    } else {
+      tutorialVideo.pause();
+    }
+  }
+
   // --- Video Loading & Fallback ---
   function loadVideoForStep(step: number): void {
     if (!tutorialVideo) return;
     const guide = tutor.getCurrentGuide();
 
-    if (btnVideoPlay) btnVideoPlay.textContent = 'หยุด';
+    updateVideoPlayUI('paused');
 
     videoLoader.load(
       tutorialVideo,
@@ -377,27 +481,60 @@ document.addEventListener('DOMContentLoaded', () => {
           if (videoFallbackContainer) videoFallbackContainer.classList.add('hidden');
           tutorialVideo.classList.remove('hidden');
           if (videoLoadingOverlay) videoLoadingOverlay.classList.remove('hidden');
+          if (btnVideoPlay) btnVideoPlay.disabled = false;
+          isUserSeeking = false;
+          if (videoTimelineContainer) videoTimelineContainer.classList.remove('hidden');
+          if (videoTimelineSlider) videoTimelineSlider.value = '0';
+          if (videoTimeCurrent) videoTimeCurrent.textContent = '00:00';
+          if (videoTimeDuration) videoTimeDuration.textContent = '00:00';
+          if (btnVideoLoop) btnVideoLoop.disabled = false;
+          if (btnVideoMute) btnVideoMute.disabled = false;
+          if (btnSpeed05) btnSpeed05.disabled = false;
+          if (btnSpeed075) btnSpeed075.disabled = false;
+          if (btnSpeed10) btnSpeed10.disabled = false;
         },
         onSuccess: () => {
           if (videoLoadingOverlay) videoLoadingOverlay.classList.add('hidden');
+          updateVideoPlayUI('paused');
         },
         onFallback: (fallbackUrl) => {
           console.warn(`[Tutor] Video load failed for Step ${step} (${guide.videoUrl}), triggering fallback.`);
           triggerFallback(fallbackUrl);
         },
-      }
+      },
+      false
     );
   }
 
   function triggerFallback(fallbackImageUrl: string): void {
     videoLoader.cancel();
     if (videoLoadingOverlay) videoLoadingOverlay.classList.add('hidden');
+    if (btnVideoOverlayPlay) btnVideoOverlayPlay.classList.add('hidden');
     if (tutorialVideo) {
       tutorialVideo.pause();
       tutorialVideo.classList.add('hidden');
     }
+    if (btnVideoPlay) {
+      btnVideoPlay.disabled = true;
+      btnVideoPlay.classList.remove('is-playing', 'is-replay');
+      btnVideoPlay.innerHTML = '<span class="play-btn-icon">—</span><span class="play-btn-label">โหมดรูปภาพ</span>';
+      if (videoTimelineContainer) videoTimelineContainer.classList.add('hidden');
+      if (btnVideoLoop) btnVideoLoop.disabled = true;
+      if (btnVideoMute) btnVideoMute.disabled = true;
+      if (btnSpeed05) btnSpeed05.disabled = true;
+      if (btnSpeed075) btnSpeed075.disabled = true;
+      if (btnSpeed10) btnSpeed10.disabled = true;
+    }
     if (videoFallbackContainer && fallbackGuideImage) {
-      fallbackGuideImage.src = fallbackImageUrl || '/references/step-1.png';
+      fallbackGuideImage.onerror = () => {
+        fallbackGuideImage.onerror = null;
+        if (fallbackGuideImage.src.endsWith('.jpg')) {
+          fallbackGuideImage.src = fallbackGuideImage.src.replace(/\.jpg$/, '.png');
+        } else if (fallbackGuideImage.src.endsWith('.png')) {
+          fallbackGuideImage.src = fallbackGuideImage.src.replace(/\.png$/, '.jpg');
+        }
+      };
+      fallbackGuideImage.src = fallbackImageUrl || '/references/step-1.jpg';
       videoFallbackContainer.classList.remove('hidden');
     }
   }
@@ -412,10 +549,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       stopCamera();
 
-      if (tutorialVideo && !tutorialVideo.classList.contains('hidden')) {
-        tutorialVideo.play().catch(() => {});
-        if (btnVideoPlay) btnVideoPlay.textContent = 'หยุด';
-      }
+      // Keep playback state in sync without forcing autoplay
+      updateVideoPlayUI(
+        tutorialVideo?.ended ? 'ended' : tutorialVideo && !tutorialVideo.paused ? 'playing' : 'paused'
+      );
 
       setStatusBox({
         kind: 'waiting',
@@ -431,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (tutorialVideo) {
         tutorialVideo.pause();
-        if (btnVideoPlay) btnVideoPlay.textContent = 'เล่น';
+        updateVideoPlayUI('paused');
       }
 
       startCamera();
@@ -964,8 +1101,10 @@ document.addEventListener('DOMContentLoaded', () => {
       previewProgressSummary.classList.remove('hidden');
       previewProgressText.textContent = `ผ่านแล้ว ${progress.completedCount}/${fig.total_steps} ขั้นตอน (${progress.percent}%)`;
       previewProgressFill.style.width = `${progress.percent}%`;
-    } else if (previewProgressSummary) {
-      previewProgressSummary.classList.add('hidden');
+    } else {
+      if (previewProgressSummary) previewProgressSummary.classList.add('hidden');
+      if (previewProgressText) previewProgressText.textContent = `ผ่านแล้ว 0/${fig.total_steps} ขั้นตอน`;
+      if (previewProgressFill) previewProgressFill.style.width = '0%';
     }
 
     if (btnPreviewStart) {
@@ -1087,14 +1226,33 @@ document.addEventListener('DOMContentLoaded', () => {
   btnBackToWatch?.addEventListener('click', () => tutor.enterWatchMode());
 
   // Video playback controls
-  btnVideoPlay?.addEventListener('click', () => {
-    if (!tutorialVideo) return;
-    if (tutorialVideo.paused) {
-      tutorialVideo.play();
-      btnVideoPlay.textContent = 'หยุด';
-    } else {
-      tutorialVideo.pause();
-      btnVideoPlay.textContent = 'เล่น';
+  btnVideoOverlayPlay?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleVideoPlayback();
+  });
+
+  btnVideoPlay?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleVideoPlayback();
+  });
+
+  tutorialVideo?.addEventListener('click', () => {
+    toggleVideoPlayback();
+  });
+
+  tutorialVideo?.addEventListener('play', () => {
+    updateVideoPlayUI('playing');
+  });
+
+  tutorialVideo?.addEventListener('pause', () => {
+    if (!tutorialVideo.ended) {
+      updateVideoPlayUI('paused');
+    }
+  });
+
+  tutorialVideo?.addEventListener('ended', () => {
+    if (!tutor.getIsLooping()) {
+      updateVideoPlayUI('ended');
     }
   });
 
@@ -1103,10 +1261,56 @@ document.addEventListener('DOMContentLoaded', () => {
   btnSpeed10?.addEventListener('click', () => tutor.setPlaybackSpeed(1.0));
   btnVideoLoop?.addEventListener('click', () => tutor.toggleLoop());
 
+  tutorialVideo?.addEventListener('timeupdate', () => {
+    if (!isUserSeeking) {
+      if (videoTimelineSlider && Number.isFinite(tutorialVideo.duration) && tutorialVideo.duration > 0) {
+        const percent = (tutorialVideo.currentTime / tutorialVideo.duration) * 100;
+        videoTimelineSlider.value = percent.toFixed(1);
+      }
+      if (videoTimeCurrent) {
+        videoTimeCurrent.textContent = formatVideoTime(tutorialVideo.currentTime);
+      }
+    }
+  });
+
+  tutorialVideo?.addEventListener('loadedmetadata', () => {
+    if (videoTimeDuration) {
+      videoTimeDuration.textContent = formatVideoTime(tutorialVideo.duration);
+    }
+    if (videoTimeCurrent) {
+      videoTimeCurrent.textContent = formatVideoTime(tutorialVideo.currentTime);
+    }
+    if (videoTimelineSlider) {
+      videoTimelineSlider.value = '0';
+    }
+  });
+
+  tutorialVideo?.addEventListener('durationchange', () => {
+    if (videoTimeDuration) {
+      videoTimeDuration.textContent = formatVideoTime(tutorialVideo.duration);
+    }
+  });
+
+  videoTimelineSlider?.addEventListener('input', () => {
+    isUserSeeking = true;
+    if (tutorialVideo && Number.isFinite(tutorialVideo.duration) && tutorialVideo.duration > 0 && videoTimeCurrent) {
+      const targetTime = (parseFloat(videoTimelineSlider.value) / 100) * tutorialVideo.duration;
+      videoTimeCurrent.textContent = formatVideoTime(targetTime);
+    }
+  });
+
+  videoTimelineSlider?.addEventListener('change', () => {
+    if (tutorialVideo && Number.isFinite(tutorialVideo.duration) && tutorialVideo.duration > 0) {
+      const targetTime = (parseFloat(videoTimelineSlider.value) / 100) * tutorialVideo.duration;
+      tutorialVideo.currentTime = targetTime;
+    }
+    isUserSeeking = false;
+  });
+
   btnVideoMute?.addEventListener('click', () => {
     if (!tutorialVideo) return;
     tutorialVideo.muted = !tutorialVideo.muted;
-    btnVideoMute.textContent = tutorialVideo.muted ? 'ปิดเสียง' : 'เปิดเสียง';
+    btnVideoMute.textContent = tutorialVideo.muted ? 'เสียง: ปิด' : 'เสียง: เปิด';
   });
 
   // Camera toolbar & settings

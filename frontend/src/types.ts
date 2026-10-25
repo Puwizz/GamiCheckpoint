@@ -146,7 +146,7 @@ export const STEP_FOLD_GUIDES: StepFoldGuide[] = [
     foldTip: 'พับครึ่งทแยงมุมและแนวขนาน รีดรอยพับให้คมชัด แล้วยุบมุมเข้าหากันจนเป็นสี่เหลี่ยมจัตุรัสซ้อนกัน',
     checkPointTip: 'วางชิ้นงานให้ปลายเปิดชี้เข้าหากล้อง ตรวจสอบให้สันพับทั้งสี่ด้านเรียบเสมอกัน',
     videoUrl: '/videos/step-1.mp4',
-    fallbackImageUrl: '/references/step-1.png',
+    fallbackImageUrl: '/references/step-1.jpg',
   },
   {
     stepNumber: 2,
@@ -155,7 +155,7 @@ export const STEP_FOLD_GUIDES: StepFoldGuide[] = [
     foldTip: 'หันด้านปลายเปิดลง แล้วพับขอบด้านข้างทั้งซ้ายและขวาเข้าไปชิดเส้นกึ่งกลาง (ทำทั้งด้านหน้าและด้านหลัง)',
     checkPointTip: 'รอยพับสองข้างต้องประกบชิดเส้นกึ่งกลางพอดี ไม่เกยทับหรือห่างกันจนเกินไป',
     videoUrl: '/videos/step-2.mp4',
-    fallbackImageUrl: '/references/step-2.png',
+    fallbackImageUrl: '/references/step-2.jpg',
   },
   {
     stepNumber: 3,
@@ -164,7 +164,7 @@ export const STEP_FOLD_GUIDES: StepFoldGuide[] = [
     foldTip: 'กางรอยพับด้านข้างออก เปิดแผ่นกระดาษขึ้นแล้วรีดพับกลีบ (Petal fold) รีดแบนให้เป็นรูปข้าวหลามตัดยาว',
     checkPointTip: 'ด้านล่างจะมีสองแฉกที่แยกออกจากกันอิสระ พร้อมจะดึงขึ้นเป็นคอและหาง',
     videoUrl: '/videos/step-3.mp4',
-    fallbackImageUrl: '/references/step-3.png',
+    fallbackImageUrl: '/references/step-3.jpg',
   },
   {
     stepNumber: 4,
@@ -173,7 +173,7 @@ export const STEP_FOLD_GUIDES: StepFoldGuide[] = [
     foldTip: 'พับทบด้านข้าง แล้วดึงปลายแหลมด้านล่างทั้งสองข้างเฉียงขึ้นเฉียงออก เพื่อสร้างคอและหาง',
     checkPointTip: 'ทั้งคอและหางยกขึ้นทำมุมสวยงาม ปลายทั้งสองข้างยังตรงอยู่ ยังไม่พับหัวนก',
     videoUrl: '/videos/step-4.mp4',
-    fallbackImageUrl: '/references/step-4.png',
+    fallbackImageUrl: '/references/step-4.jpg',
   },
   {
     stepNumber: 5,
@@ -182,7 +182,7 @@ export const STEP_FOLD_GUIDES: StepFoldGuide[] = [
     foldTip: 'เลือกปลายด้านใดด้านหนึ่งเป็นคอ จากนั้นกดรอยพับย้อนกลับ (Reverse fold) พับปลายแหลมลงมาเป็นหัวนก',
     checkPointTip: 'หัวนกต้องพับชี้ลงมาชัดเจน ขณะที่ปีกทั้งสองข้างยังคงประกบแนบสนิทอยู่',
     videoUrl: '/videos/step-5.mp4',
-    fallbackImageUrl: '/references/step-5.png',
+    fallbackImageUrl: '/references/step-5.jpg',
   },
   {
     stepNumber: 6,
@@ -191,7 +191,7 @@ export const STEP_FOLD_GUIDES: StepFoldGuide[] = [
     foldTip: 'ใช้นิ้วค่อยๆ ดึงปีกทั้งสองข้างกางออกจากกันเบาๆ ให้ลำตัวนกพองออกอย่างเป็นธรรมชาติ',
     checkPointTip: 'กางปีกทั้งสองข้างหันเข้าหากล้อง ลำตัวพองสวยงาม มองเห็นทั้งหัว คอ ปีก และหางชัดเจน',
     videoUrl: '/videos/step-6.mp4',
-    fallbackImageUrl: '/references/step-6.png',
+    fallbackImageUrl: '/references/step-6.jpg',
   },
 ];
 

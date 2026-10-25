@@ -43,7 +43,7 @@ describe('VideoStepLoader', () => {
       onStart,
       onSuccess,
       onFallback,
-    });
+    }, true);
 
     expect(onStart).toHaveBeenCalled();
     expect(mockVideo.src).toBe('/videos/step-1.mp4');
@@ -55,6 +55,20 @@ describe('VideoStepLoader', () => {
     expect(onSuccess).toHaveBeenCalled();
     expect(mockVideo.play).toHaveBeenCalled();
     expect(onFallback).not.toHaveBeenCalled();
+  });
+
+  it('does not autoplay when autoPlay is false', () => {
+    const loader = new VideoStepLoader();
+    const mockVideo = createMockVideoElement();
+    const onSuccess = vi.fn();
+
+    loader.load(mockVideo, '/videos/step-1.mp4', '/images/fallback.png', 1.0, false, {
+      onSuccess,
+    }, false);
+
+    mockVideo.emit('canplay');
+    expect(onSuccess).toHaveBeenCalled();
+    expect(mockVideo.play).not.toHaveBeenCalled();
   });
 
   it('triggers onFallback immediately when videoUrl is empty', () => {
