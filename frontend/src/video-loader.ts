@@ -2,6 +2,7 @@ export interface VideoElementTarget {
   src: string;
   playbackRate: number;
   loop: boolean;
+  error?: MediaError | null;
   load(): void;
   play(): Promise<void>;
   addEventListener(
@@ -32,7 +33,8 @@ export class VideoStepLoader {
     fallbackImageUrl: string,
     playbackSpeed: number,
     isLooping: boolean,
-    callbacks: VideoLoaderCallbacks = {}
+    callbacks: VideoLoaderCallbacks = {},
+    autoPlay: boolean = false
   ): number {
     const loadId = ++this.activeLoadId;
 
@@ -56,12 +58,19 @@ export class VideoStepLoader {
       if (loadId !== this.activeLoadId) return;
       cleanup();
       callbacks.onSuccess?.();
-      videoElement.play().catch(() => {});
+      if (autoPlay) {
+        videoElement.play().catch(() => {});
+      }
     };
 
     const onError = () => {
       if (loadId !== this.activeLoadId) return;
       cleanup();
+      console.warn(`[VideoLoader] Video failed to load/decode on ${videoUrl}:`, {
+        code: videoElement.error?.code,
+        message: videoElement.error?.message,
+        error: videoElement.error,
+      });
       callbacks.onFallback?.(fallbackImageUrl);
     };
 

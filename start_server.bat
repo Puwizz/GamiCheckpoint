@@ -3,6 +3,11 @@ cd /d "%~dp0"
 echo =========================================
 echo   GamiSenpai - Multi-Origami Web Server
 echo =========================================
+
+if exist tools\apply_faststart.ps1 (
+    powershell -ExecutionPolicy Bypass -File tools\apply_faststart.ps1 >nul 2>&1
+)
+
 echo Starting server at: http://127.0.0.1:8000
 echo.
 

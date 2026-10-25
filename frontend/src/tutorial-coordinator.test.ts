@@ -21,7 +21,7 @@ describe('TutorialCoordinator', () => {
     expect(coordinator.getMode()).toBe('watch');
     expect(coordinator.getCurrentStep()).toBe(1);
     expect(coordinator.getPlaybackSpeed()).toBe(1.0);
-    expect(coordinator.getIsLooping()).toBe(true);
+    expect(coordinator.getIsLooping()).toBe(false);
     expect(coordinator.getIsCelebrating()).toBe(false);
     expect(coordinator.getIsEscapeHatchActive()).toBe(false);
     expect(coordinator.getCurrentGuide().stepNumber).toBe(1);
@@ -125,8 +125,8 @@ describe('TutorialCoordinator', () => {
     expect(speedSpy).toHaveBeenCalledWith(0.5);
 
     const isLooping = coordinator.toggleLoop();
-    expect(isLooping).toBe(false);
-    expect(loopSpy).toHaveBeenCalledWith(false);
+    expect(isLooping).toBe(true);
+    expect(loopSpy).toHaveBeenCalledWith(true);
   });
 
   it('handles final step skip: marks final step completed, advances step count, and triggers celebration/completion callbacks (FE-02)', () => {
