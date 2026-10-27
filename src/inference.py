@@ -247,7 +247,7 @@ class StepVerifier:
                 "min_confidence": self.min_confidence,
                 "min_top_gap": self.min_top_gap,
             },
-            roi={"applied": False, "method": getattr(self.detector, "adapter_name", "detector"), "bbox": [0, 0, w, h], "polygon": None},
+            roi={"applied": False, "method": getattr(self.detector, "adapter_name", "detector"), "bbox": [0, 0, w, h], "polygon": None, "frame_size": [w, h]},
             top_predictions=[],
             coaching_hint=coaching,
             metrics=frame_metrics,
@@ -378,6 +378,7 @@ class StepVerifier:
             "polygon": polygon,
             "fusion_mode": getattr(self.detector, "fusion_mode", "native"),
             "confidence": confidence_percent,
+            "frame_size": [w, h],
         }
 
         try:

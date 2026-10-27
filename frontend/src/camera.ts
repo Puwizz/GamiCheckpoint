@@ -95,18 +95,18 @@ export class CameraStreamAdapter {
     if (!stream) {
       const videoConstraints: MediaTrackConstraints = hasValidDevice
         ? { deviceId: { ideal: this.selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-        : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } };
+        : { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } };
 
       try {
         stream = await this.acquireStreamForGeneration({ video: videoConstraints }, generation);
       } catch (primaryErr: unknown) {
         if ((primaryErr as { name?: string })?.name === 'AbortError') throw primaryErr;
-        console.warn('GamiSenpai: Primary camera constraints failed, attempting fallback to generic user facingMode:', primaryErr);
+        console.warn('GamiSenpai: Primary camera constraints failed, attempting fallback to generic facingMode:', primaryErr);
         try {
-          stream = await this.acquireStreamForGeneration({ video: { facingMode: 'user' } }, generation);
+          stream = await this.acquireStreamForGeneration({ video: { facingMode: { ideal: 'environment' } } }, generation);
         } catch (secondaryErr: unknown) {
           if ((secondaryErr as { name?: string })?.name === 'AbortError') throw secondaryErr;
-          console.warn('GamiSenpai: FacingMode user failed, attempting fallback to bare video: true:', secondaryErr);
+          console.warn('GamiSenpai: FacingMode ideal environment failed, attempting fallback to bare video: true:', secondaryErr);
           stream = await this.acquireStreamForGeneration({ video: true }, generation);
         }
       }
@@ -139,7 +139,10 @@ export class CameraStreamAdapter {
     return this.stream !== null && this.videoElement.videoWidth > 0;
   }
 
-  public captureFrameBlob(): Promise<{ blob: Blob | null; quality: FrameQuality }> {
+  public captureFrameBlob(
+    maxDimension: number = 640,
+    quality: number = 0.7
+  ): Promise<{ blob: Blob | null; quality: FrameQuality; captureWidth: number; captureHeight: number }> {
     return new Promise((resolve) => {
       const vw = this.videoElement.videoWidth;
       const vh = this.videoElement.videoHeight;
@@ -148,16 +151,30 @@ export class CameraStreamAdapter {
         resolve({
           blob: null,
           quality: { ready: false, meanLuma: 0, contrast: 0, darkRatio: 1 },
+          captureWidth: 0,
+          captureHeight: 0,
         });
         return;
+      }
+
+      let targetW = vw;
+      let targetH = vh;
+      if (maxDimension > 0 && (vw > maxDimension || vh > maxDimension)) {
+        if (vw >= vh) {
+          targetW = maxDimension;
+          targetH = Math.max(1, Math.round((vh / vw) * maxDimension));
+        } else {
+          targetH = maxDimension;
+          targetW = Math.max(1, Math.round((vw / vh) * maxDimension));
+        }
       }
 
       if (!this.captureCanvas) {
         this.captureCanvas = document.createElement('canvas');
       }
-      if (this.captureCanvas.width !== vw || this.captureCanvas.height !== vh) {
-        this.captureCanvas.width = vw;
-        this.captureCanvas.height = vh;
+      if (this.captureCanvas.width !== targetW || this.captureCanvas.height !== targetH) {
+        this.captureCanvas.width = targetW;
+        this.captureCanvas.height = targetH;
         this.captureCtx = null;
       }
       if (!this.captureCtx) {
@@ -169,24 +186,26 @@ export class CameraStreamAdapter {
         resolve({
           blob: null,
           quality: { ready: false, meanLuma: 0, contrast: 0, darkRatio: 1 },
+          captureWidth: 0,
+          captureHeight: 0,
         });
         return;
       }
 
-      ctx.drawImage(this.videoElement, 0, 0, vw, vh);
-      const quality = this.analyzeCanvasQuality(ctx, vw, vh);
+      ctx.drawImage(this.videoElement, 0, 0, targetW, targetH);
+      const frameQuality = this.analyzeCanvasQuality(ctx, targetW, targetH);
 
-      if (!quality.ready) {
-        resolve({ blob: null, quality });
+      if (!frameQuality.ready) {
+        resolve({ blob: null, quality: frameQuality, captureWidth: targetW, captureHeight: targetH });
         return;
       }
 
       this.captureCanvas.toBlob(
         (blob) => {
-          resolve({ blob, quality });
+          resolve({ blob, quality: frameQuality, captureWidth: targetW, captureHeight: targetH });
         },
         'image/jpeg',
-        0.8
+        quality
       );
     });
   }

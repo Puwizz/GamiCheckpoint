@@ -89,7 +89,7 @@ describe('CameraStreamAdapter', () => {
     expect(adapter.isStreaming()).toBe(true);
   });
 
-  it('falls back through ideal deviceId, facingMode user, and bare video: true when constraints fail', async () => {
+  it('falls back through ideal deviceId, facingMode environment, and bare video: true when constraints fail', async () => {
     const { stream } = createMockStream('Fallback Integrated Camera', 'device-integrated-1');
     const calls: MediaStreamConstraints[] = [];
 
@@ -118,7 +118,7 @@ describe('CameraStreamAdapter', () => {
       video: { deviceId: { ideal: 'busy-cam-id' }, width: { ideal: 1280 }, height: { ideal: 720 } },
     });
     expect(calls[2]).toEqual({
-      video: { facingMode: 'user' },
+      video: { facingMode: { ideal: 'environment' } },
     });
     expect(calls[3]).toEqual({
       video: true,
@@ -197,5 +197,125 @@ describe('CameraStreamAdapter', () => {
     expect(second.track.stop).not.toHaveBeenCalled();
     expect(adapter.getActiveDeviceId()).toBe('cam-2');
     expect(videoEl.srcObject).toBe(second.stream);
+  });
+
+  it('downscales frame to maxDimension (640px) preserving aspect ratio on captureFrameBlob', async () => {
+    const videoEl = createMockVideoElement();
+    (videoEl as any).videoWidth = 1920;
+    (videoEl as any).videoHeight = 1080;
+
+    let capturedWidth = 0;
+    let capturedHeight = 0;
+    let toBlobType = '';
+    let toBlobQuality = 0;
+
+    const mockCtx = {
+      drawImage: vi.fn((_video: any, _sx: number, _sy: number, dw: number, dh: number) => {
+        capturedWidth = dw;
+        capturedHeight = dh;
+      }),
+      getImageData: vi.fn((_sx: number, _sy: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4).map((_, i) => (i < (w * h * 2) ? 60 : 200)),
+      })),
+    };
+
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue(mockCtx),
+      toBlob: vi.fn((cb: (b: Blob) => void, type?: string, quality?: any) => {
+        toBlobType = type || '';
+        toBlobQuality = quality;
+        cb(new Blob(['fake-jpeg'], { type: 'image/jpeg' }));
+      }),
+    };
+
+    const originalDocument = (globalThis as any).document;
+    (globalThis as any).document = {
+      createElement: vi.fn().mockReturnValue(mockCanvas),
+    };
+
+    try {
+      const adapter = new CameraStreamAdapter(videoEl);
+      const { blob, quality, captureWidth, captureHeight } = await adapter.captureFrameBlob(640, 0.7);
+
+      expect(blob).toBeInstanceOf(Blob);
+      expect(quality.ready).toBe(true);
+      expect(capturedWidth).toBe(640);
+      expect(capturedHeight).toBe(360);
+      expect(captureWidth).toBe(640);
+      expect(captureHeight).toBe(360);
+      expect(toBlobType).toBe('image/jpeg');
+      expect(toBlobQuality).toBe(0.7);
+    } finally {
+      (globalThis as any).document = originalDocument;
+    }
+  });
+
+  it('downscales portrait mobile frame (720x1280) so max dimension is 640px', async () => {
+    const videoEl = createMockVideoElement();
+    (videoEl as any).videoWidth = 720;
+    (videoEl as any).videoHeight = 1280;
+
+    let capturedWidth = 0;
+    let capturedHeight = 0;
+
+    const mockCtx = {
+      drawImage: vi.fn((_video: any, _sx: number, _sy: number, dw: number, dh: number) => {
+        capturedWidth = dw;
+        capturedHeight = dh;
+      }),
+      getImageData: vi.fn((_sx: number, _sy: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4).map((_, i) => (i < (w * h * 2) ? 60 : 200)),
+      })),
+    };
+
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue(mockCtx),
+      toBlob: vi.fn((cb: (b: Blob) => void) => {
+        cb(new Blob(['fake-jpeg'], { type: 'image/jpeg' }));
+      }),
+    };
+
+    const originalDocument = (globalThis as any).document;
+    (globalThis as any).document = {
+      createElement: vi.fn().mockReturnValue(mockCanvas),
+    };
+
+    try {
+      const adapter = new CameraStreamAdapter(videoEl);
+      const { blob, quality, captureWidth, captureHeight } = await adapter.captureFrameBlob(640, 0.7);
+
+      expect(blob).toBeInstanceOf(Blob);
+      expect(quality.ready).toBe(true);
+      expect(capturedWidth).toBe(360);
+      expect(capturedHeight).toBe(640);
+      expect(captureWidth).toBe(360);
+      expect(captureHeight).toBe(640);
+    } finally {
+      (globalThis as any).document = originalDocument;
+    }
+  });
+
+
+  it('defaults to facingMode ideal environment when no deviceId is selected', async () => {
+    const { stream } = createMockStream('Rear Camera', 'cam-rear');
+    const calls: MediaStreamConstraints[] = [];
+
+    mockGetUserMedia(async (constraints) => {
+      calls.push(constraints);
+      return stream;
+    });
+
+    const videoEl = createMockVideoElement();
+    const adapter = new CameraStreamAdapter(videoEl);
+
+    await adapter.start();
+
+    expect(calls[0]).toEqual({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
   });
 });

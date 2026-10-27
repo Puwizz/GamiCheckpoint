@@ -35,6 +35,7 @@ imgs/
 skills-lock.json
 .claude/
 .gemini/
+docs/superpowers/
 
 # === IDE ===
 .vscode/

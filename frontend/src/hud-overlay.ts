@@ -146,7 +146,8 @@ export class DetectionOverlayRenderer {
     data: { roi?: ROIData; recognized?: boolean; step_number?: number | null; prediction?: string; confidence?: number; step_name?: string },
     targetStep: number | null,
     stateOverride: 'tracking' | 'matched' | 'locked' | 'unrecognized' | null = null,
-    streakText: string = ''
+    streakText: string = '',
+    sourceDimensions?: { width: number; height: number }
   ): void {
     if (!data || !data.roi || !data.roi.applied) {
       this.clear();
@@ -176,6 +177,7 @@ export class DetectionOverlayRenderer {
       stepName,
       streakText,
       confidence: data.confidence || 0,
+      sourceDimensions,
     });
   }
 
@@ -186,6 +188,7 @@ export class DetectionOverlayRenderer {
     stepName = '',
     streakText = '',
     confidence = 0,
+    sourceDimensions,
   }: {
     roi: ROIData;
     state?: 'tracking' | 'matched' | 'locked' | 'unrecognized' | 'idle';
@@ -193,6 +196,7 @@ export class DetectionOverlayRenderer {
     stepName?: string;
     streakText?: string;
     confidence?: number;
+    sourceDimensions?: { width: number; height: number };
   }): void {
     if (!this.enabled || !roi || !this.video || !this.video.videoWidth || !this.video.videoHeight) {
       this.clear();
@@ -204,7 +208,16 @@ export class DetectionOverlayRenderer {
       return;
     }
 
-    const mapped = this.mapBBoxToCanvas(roi.bbox);
+    if (this.width === 0 || this.height === 0) {
+      this.resize();
+    }
+
+    const sourceFrame =
+      roi.frame_size && roi.frame_size.length >= 2
+        ? { width: roi.frame_size[0], height: roi.frame_size[1] }
+        : sourceDimensions;
+
+    const mapped = this.mapBBoxToCanvas(roi.bbox, sourceFrame);
     if (!mapped || mapped.width <= 0 || mapped.height <= 0) {
       this.clear();
       return;
@@ -214,7 +227,7 @@ export class DetectionOverlayRenderer {
     if (!this.currentBox) {
       this.currentBox = { ...mapped };
     }
-    this.currentPolygon = roi.polygon ? this.mapPolygonToCanvas(roi.polygon) : null;
+    this.currentPolygon = roi.polygon ? this.mapPolygonToCanvas(roi.polygon, sourceFrame) : null;
     this.targetOpacity = 1;
     this.startRenderLoop();
 
@@ -231,14 +244,23 @@ export class DetectionOverlayRenderer {
 
   public clear(): void {
     this.targetOpacity = 0;
+    this.currentOpacity = 0;
     this.currentPolygon = null;
+    this.targetBox = null;
+    this.currentBox = null;
+    if (this.ctx) {
+      this.ctx.clearRect(0, 0, this.width, this.height);
+    }
   }
 
-  public mapPolygonToCanvas(polygon: [number, number][]): { x: number; y: number }[] | null {
+  public mapPolygonToCanvas(
+    polygon: [number, number][],
+    sourceFrame?: { width: number; height: number }
+  ): { x: number; y: number }[] | null {
     if (!this.video || !this.width || !this.height || !Array.isArray(polygon)) return null;
 
-    const vw = this.video.videoWidth;
-    const vh = this.video.videoHeight;
+    const vw = sourceFrame && sourceFrame.width > 0 ? sourceFrame.width : this.video.videoWidth;
+    const vh = sourceFrame && sourceFrame.height > 0 ? sourceFrame.height : this.video.videoHeight;
     if (vw === 0 || vh === 0) return null;
 
     const cw = this.width;
@@ -266,11 +288,14 @@ export class DetectionOverlayRenderer {
     return points;
   }
 
-  private mapBBoxToCanvas(bbox: [number, number, number, number]): BoxCoords | null {
+  private mapBBoxToCanvas(
+    bbox: [number, number, number, number],
+    sourceFrame?: { width: number; height: number }
+  ): BoxCoords | null {
     if (!this.video || !this.width || !this.height) return null;
 
-    const vw = this.video.videoWidth;
-    const vh = this.video.videoHeight;
+    const vw = sourceFrame && sourceFrame.width > 0 ? sourceFrame.width : this.video.videoWidth;
+    const vh = sourceFrame && sourceFrame.height > 0 ? sourceFrame.height : this.video.videoHeight;
     if (vw === 0 || vh === 0) return null;
 
     const cw = this.width;

@@ -17,7 +17,7 @@ import {
 } from './types';
 
 const API_PREDICT_BASE = '/api/predict';
-const PREDICT_INTERVAL_MS = 1000;
+const PREDICT_DEBOUNCE_MS = 150;
 
 document.addEventListener('DOMContentLoaded', () => {
   // --- View Containers & Navigation ---
@@ -144,10 +144,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const cameraAdapter = new CameraStreamAdapter(webcam);
   const videoLoader = new VideoStepLoader();
 
-  let intervalId: number | null = null;
+  let predictTimerId: number | null = null;
   let isProcessing = false;
   let flowVersion = 0;
   let activePredictAbortController: AbortController | null = null;
+  let userSelectedDeviceId = '';
 
   // --- Initialize Tutorial Coordinator ---
   const tutor = new TutorialCoordinator({
@@ -563,6 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       watchStage?.classList.add('hidden');
       verifyStage?.classList.remove('hidden');
+      hudOverlay.resize();
       modePillWatch?.classList.remove('active');
       modePillVerify?.classList.add('active');
 
@@ -585,6 +587,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Camera Operations ---
+  const REAR_CAMERA_LABEL_RE = /back|rear|environment|หลัง/i;
+
   async function refreshCameraList(): Promise<void> {
     if (!cameraSelect || !btnRefreshCameras) return;
     btnRefreshCameras.disabled = true;
@@ -598,21 +602,30 @@ document.addEventListener('DOMContentLoaded', () => {
       cameraSelect.appendChild(opt);
       cameraAdapter.setSelectedDeviceId('');
     } else {
+      const preferredRear = !userSelectedDeviceId
+        ? devices.find((d) => REAR_CAMERA_LABEL_RE.test(d.label || ''))
+        : undefined;
+      const targetId = userSelectedDeviceId || preferredRear?.deviceId || '';
+
       devices.forEach((dev: MediaDeviceInfo, idx: number) => {
         const opt = document.createElement('option');
         opt.value = dev.deviceId;
         opt.text = dev.label || `Camera ${idx + 1}`;
+        if (targetId && dev.deviceId === targetId) {
+          opt.selected = true;
+        }
         cameraSelect.appendChild(opt);
       });
-      cameraAdapter.setSelectedDeviceId(cameraSelect.value || '');
+      cameraAdapter.setSelectedDeviceId(userSelectedDeviceId);
     }
     btnRefreshCameras.disabled = false;
   }
 
   async function startCamera(): Promise<void> {
     try {
-      const requestedDeviceId = cameraSelect?.value?.trim() || '';
-      const requestedLabel = cameraSelect?.options[cameraSelect.selectedIndex]?.text || 'กล้องหลัก';
+      const requestedDeviceId = userSelectedDeviceId;
+      const requestedLabel =
+        (requestedDeviceId && cameraSelect?.options[cameraSelect.selectedIndex]?.text) || 'กล้องหลัก';
       cameraAdapter.setSelectedDeviceId(requestedDeviceId);
 
       await cameraAdapter.start();
@@ -663,8 +676,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setCameraHint(`กำลังสตรีมภาพจาก: ${actualLabel || selectedLabel}`, 'success');
       }
 
-      if (intervalId !== null) clearInterval(intervalId);
-      intervalId = window.setInterval(captureAndPredict, PREDICT_INTERVAL_MS);
+      clearPredictLoop();
+      scheduleNextPredict(50);
     } catch (err: unknown) {
       const errName = (err as { name?: string })?.name;
       if (errName === 'AbortError') {
@@ -691,10 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
       activePredictAbortController = null;
     }
     cameraAdapter.stop();
-    if (intervalId !== null) {
-      clearInterval(intervalId);
-      intervalId = null;
-    }
+    clearPredictLoop();
 
     hudOverlay.reset();
     if (roiMethodBadge) roiMethodBadge.classList.add('hidden');
@@ -709,19 +719,51 @@ document.addEventListener('DOMContentLoaded', () => {
     flowVersion += 1;
   }
 
+  function clearPredictLoop(): void {
+    if (predictTimerId !== null) {
+      window.clearTimeout(predictTimerId);
+      predictTimerId = null;
+    }
+  }
+
+  function scheduleNextPredict(delayMs: number = PREDICT_DEBOUNCE_MS): void {
+    clearPredictLoop();
+    if (!cameraAdapter.hasActiveStream()) return;
+    predictTimerId = window.setTimeout(async () => {
+      await captureAndPredict();
+    }, delayMs);
+  }
+
   // --- AI Frame Polling & Decision Loop ---
   async function captureAndPredict(): Promise<void> {
-    if (isProcessing || !cameraAdapter.isStreaming()) return;
+    if (!cameraAdapter.hasActiveStream()) return;
+    if (isProcessing) {
+      scheduleNextPredict(PREDICT_DEBOUNCE_MS);
+      return;
+    }
+    if (!cameraAdapter.isStreaming()) {
+      scheduleNextPredict(100);
+      return;
+    }
     const currentState = sessionEngine.getState();
     const total = tutor.getTotalSteps();
-    if (currentState.currentStep > total || currentState.isAdvancing) return;
+    if (currentState.currentStep > total) return;
+    if (currentState.isAdvancing) {
+      scheduleNextPredict(PREDICT_DEBOUNCE_MS);
+      return;
+    }
 
     isProcessing = true;
     const reqStep = currentState.currentStep;
     const reqFlowVersion = flowVersion;
 
     try {
-      const { blob, quality } = await cameraAdapter.captureFrameBlob();
+      const { blob, quality, captureWidth, captureHeight } = await cameraAdapter.captureFrameBlob(640, 0.7);
+      if (reqFlowVersion !== flowVersion || !cameraAdapter.hasActiveStream()) {
+        return;
+      }
+      const sourceDimensions =
+        captureWidth > 0 && captureHeight > 0 ? { width: captureWidth, height: captureHeight } : undefined;
 
       if (!quality.ready || !blob) {
         hudOverlay.clear();
@@ -766,6 +808,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch {
           // ignore non-json response
         }
+        if (reqFlowVersion !== flowVersion || !cameraAdapter.hasActiveStream()) {
+          return;
+        }
         console.warn('Prediction API error:', response.status, errorMsg);
         showToast('warning', errorMsg);
         setStatusBox({
@@ -780,15 +825,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const data: VerificationResult = await response.json();
 
+      if (
+        reqStep !== sessionEngine.getState().currentStep ||
+        reqFlowVersion !== flowVersion ||
+        !cameraAdapter.hasActiveStream()
+      ) {
+        return; // Stale frame
+      }
+
       if (data.error) {
         console.error('API Error:', data.error);
         showToast('warning', data.error);
         hudOverlay.clear();
         return;
-      }
-
-      if (reqStep !== sessionEngine.getState().currentStep || reqFlowVersion !== flowVersion) {
-        return; // Stale frame
       }
 
       // Update badge
@@ -823,35 +872,35 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'LOW_CONFIDENCE':
           setStatusBox(action.status);
           if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
-          hudOverlay.updateFromAPI(data, reqStep, 'tracking');
+          hudOverlay.updateFromAPI(data, reqStep, 'tracking', undefined, sourceDimensions);
           break;
 
         case 'LOCKED_MISMATCH':
           setStatusBox(action.status);
           if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
-          hudOverlay.updateFromAPI(data, reqStep, action.overlayState);
+          hudOverlay.updateFromAPI(data, reqStep, action.overlayState, undefined, sourceDimensions);
           break;
 
         case 'CONFIRMING':
           setStatusBox(action.status, action.streak);
           if (senpaiTip && action.tip) senpaiTip.textContent = action.tip;
-          hudOverlay.updateFromAPI(data, reqStep, 'tracking', `${action.streak}/3`);
+          hudOverlay.updateFromAPI(data, reqStep, 'tracking', `${action.streak}/3`, sourceDimensions);
           break;
 
         case 'MATCH_SUCCESS':
           setStatusBox(action.status, 3);
-          hudOverlay.updateFromAPI(data, reqStep, 'matched', 'PASS');
+          hudOverlay.updateFromAPI(data, reqStep, 'matched', 'PASS', sourceDimensions);
           tutor.handleStepVerified(action.finishedStep);
           break;
 
         case 'ALL_COMPLETE':
           setStatusBox(action.status, 3);
-          hudOverlay.updateFromAPI(data, reqStep, 'matched', 'COMPLETE');
+          hudOverlay.updateFromAPI(data, reqStep, 'matched', 'COMPLETE', sourceDimensions);
           tutor.handleStepVerified(total);
           break;
       }
     } catch (err: any) {
-      if (err?.name === 'AbortError') {
+      if (err?.name === 'AbortError' || reqFlowVersion !== flowVersion || !cameraAdapter.hasActiveStream()) {
         return;
       }
       console.error('Fetch error:', err);
@@ -865,6 +914,11 @@ document.addEventListener('DOMContentLoaded', () => {
       hudOverlay.clear();
     } finally {
       isProcessing = false;
+      const stateAfter = sessionEngine.getState();
+      const totalSteps = tutor.getTotalSteps();
+      if (cameraAdapter.hasActiveStream() && stateAfter.currentStep <= totalSteps) {
+        scheduleNextPredict(PREDICT_DEBOUNCE_MS);
+      }
     }
   }
 
@@ -1325,7 +1379,8 @@ document.addEventListener('DOMContentLoaded', () => {
   btnRefreshCameras?.addEventListener('click', refreshCameraList);
   if (cameraSelect) {
     cameraSelect.addEventListener('change', async () => {
-      cameraAdapter.setSelectedDeviceId(cameraSelect.value);
+      userSelectedDeviceId = cameraSelect.value?.trim() || '';
+      cameraAdapter.setSelectedDeviceId(userSelectedDeviceId);
       const chosenText = cameraSelect.options[cameraSelect.selectedIndex]?.text || '';
       if (cameraAdapter.hasActiveStream() || btnStart?.disabled) {
         await startCamera();
