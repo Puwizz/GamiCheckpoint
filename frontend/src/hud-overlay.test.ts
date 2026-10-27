@@ -288,5 +288,101 @@ describe('DetectionOverlayRenderer', () => {
 
     renderer.destroy();
   });
-});
 
+  it('correctly maps bbox and polygon when roi is computed on downscaled source frame (640x360)', () => {
+    const canvas = createMockCanvas(); // 640x360
+    (canvas.getBoundingClientRect as any).mockReturnValue({ width: 640, height: 360 });
+    const video = { videoWidth: 1920, videoHeight: 1080 } as HTMLVideoElement;
+    const renderer = new DetectionOverlayRenderer(canvas, video);
+
+    const roi: ROIData = {
+      applied: true,
+      bbox: [100, 50, 500, 300],
+      polygon: [
+        [100, 50],
+        [500, 50],
+        [500, 300],
+        [100, 300],
+      ],
+      frame_size: [640, 360],
+      method: 'yolo_detection',
+    };
+
+    renderer.updateOverlay({ roi, state: 'tracking', stepNumber: 1 });
+
+    const targetBox = (renderer as any).targetBox;
+    expect(targetBox).not.toBeNull();
+    expect(targetBox.x).toBeCloseTo(100, 1);
+    expect(targetBox.y).toBeCloseTo(50, 1);
+    expect(targetBox.width).toBeCloseTo(400, 1);
+    expect(targetBox.height).toBeCloseTo(250, 1);
+
+    const targetPoly = (renderer as any).currentPolygon;
+    expect(targetPoly).not.toBeNull();
+    expect(targetPoly[0].x).toBeCloseTo(100, 1);
+    expect(targetPoly[0].y).toBeCloseTo(50, 1);
+
+    renderer.destroy();
+  });
+
+  it('correctly maps coordinates using sourceDimensions parameter when roi.frame_size is absent', () => {
+    const canvas = createMockCanvas(); // 640x360
+    (canvas.getBoundingClientRect as any).mockReturnValue({ width: 640, height: 360 });
+    const video = { videoWidth: 1920, videoHeight: 1080 } as HTMLVideoElement;
+    const renderer = new DetectionOverlayRenderer(canvas, video);
+
+    const roi: ROIData = {
+      applied: true,
+      bbox: [100, 50, 500, 300],
+      method: 'yolo_detection',
+    };
+
+    renderer.updateOverlay({
+      roi,
+      state: 'tracking',
+      stepNumber: 1,
+      sourceDimensions: { width: 640, height: 360 },
+    });
+
+    const targetBox = (renderer as any).targetBox;
+    expect(targetBox).not.toBeNull();
+    expect(targetBox.x).toBeCloseTo(100, 1);
+    expect(targetBox.y).toBeCloseTo(50, 1);
+    expect(targetBox.width).toBeCloseTo(400, 1);
+    expect(targetBox.height).toBeCloseTo(250, 1);
+
+    renderer.destroy();
+  });
+
+
+  it('lazily resizes canvas on updateOverlay when initial dimensions were 0x0 due to hidden container', () => {
+    const canvas = createMockCanvas();
+    (canvas.getBoundingClientRect as any).mockReturnValue({ width: 0, height: 0 });
+    const video = { videoWidth: 1280, videoHeight: 720 } as HTMLVideoElement;
+    const renderer = new DetectionOverlayRenderer(canvas, video);
+
+    // Initially 0x0 because container was display:none
+    expect((renderer as any).width).toBe(0);
+    expect((renderer as any).height).toBe(0);
+
+    // Container becomes visible before updateOverlay
+    (canvas.getBoundingClientRect as any).mockReturnValue({ width: 640, height: 360 });
+
+    renderer.updateOverlay({
+      roi: {
+        applied: true,
+        bbox: [100, 50, 400, 250],
+        frame_size: [640, 360],
+        method: 'yolo_detection',
+      },
+      state: 'tracking',
+      stepNumber: 1,
+    });
+
+    expect((renderer as any).width).toBe(640);
+    expect((renderer as any).height).toBe(360);
+    expect((renderer as any).targetBox).not.toBeNull();
+
+    renderer.destroy();
+  });
+});

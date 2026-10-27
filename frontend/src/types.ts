@@ -27,6 +27,7 @@ export interface ROIData {
   crop_weight?: number;
   original_top_confidence?: number;
   cropped_top_confidence?: number;
+  frame_size?: [number, number];
 }
 
 export interface PredictionCandidate {
