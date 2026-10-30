@@ -2,6 +2,7 @@ export interface VideoElementTarget {
   src: string;
   playbackRate: number;
   loop: boolean;
+  muted?: boolean;
   readyState?: number;
   error?: MediaError | null;
   load(): void;
@@ -48,7 +49,8 @@ export class VideoStepLoader {
     playbackSpeed: number,
     isLooping: boolean,
     callbacks: VideoLoaderCallbacks = {},
-    autoPlay: boolean = false
+    autoPlay: boolean = false,
+    isMuted: boolean = false
   ): number {
     const loadId = ++this.activeLoadId;
     const wasLoadingInFlight = this.activeCleanup !== null;
@@ -70,6 +72,7 @@ export class VideoStepLoader {
 
     videoElement.playbackRate = playbackSpeed;
     videoElement.loop = isLooping;
+    videoElement.muted = isMuted;
 
     if (isSameSource && isReady) {
       callbacks.onSuccess?.();
@@ -131,6 +134,113 @@ export class VideoStepLoader {
     if (this.activeCleanup) {
       this.activeCleanup();
       this.activeCleanup = null;
+    }
+  }
+}
+
+export interface FullscreenCapableContainer {
+  classList?: {
+    contains(cls: string): boolean;
+    add(cls: string): void;
+    remove(cls: string): void;
+  };
+  requestFullscreen?: () => Promise<void>;
+  webkitRequestFullscreen?: () => Promise<void> | void;
+  [key: string]: any;
+}
+
+export interface FullscreenCapableVideo {
+  webkitEnterFullscreen?: () => void;
+  webkitExitFullscreen?: () => void;
+  webkitDisplayingFullscreen?: boolean;
+  [key: string]: any;
+}
+
+export function isVideoFullscreen(
+  container?: FullscreenCapableContainer | null,
+  video?: FullscreenCapableVideo | null,
+  doc?: any
+): boolean {
+  if (container?.classList?.contains('is-css-fullscreen')) return true;
+  if (video?.webkitDisplayingFullscreen) return true;
+  const d = doc !== undefined ? doc : (typeof document !== 'undefined' ? document : null);
+  if (d && (d.fullscreenElement === container || d.webkitFullscreenElement === container)) {
+    return true;
+  }
+  return false;
+}
+
+export async function toggleVideoFullscreen(
+  container: FullscreenCapableContainer | null,
+  video: FullscreenCapableVideo | null,
+  doc?: any
+): Promise<boolean> {
+  const d = doc !== undefined ? doc : (typeof document !== 'undefined' ? document : null);
+  if (isVideoFullscreen(container, video, d)) {
+    await exitVideoFullscreenIfActive(container, video, d);
+    return false;
+  }
+
+  if (container?.requestFullscreen) {
+    try {
+      await container.requestFullscreen();
+      return true;
+    } catch {
+      // Fall through to video native or CSS
+    }
+  } else if (container?.webkitRequestFullscreen) {
+    try {
+      await container.webkitRequestFullscreen();
+      return true;
+    } catch {
+      // Fall through
+    }
+  }
+
+  if (typeof video?.webkitEnterFullscreen === 'function') {
+    try {
+      video.webkitEnterFullscreen();
+      return true;
+    } catch {
+      // Fall through
+    }
+  }
+
+  if (container?.classList) {
+    container.classList.add('is-css-fullscreen');
+    return true;
+  }
+
+  return false;
+}
+
+export async function exitVideoFullscreenIfActive(
+  container: FullscreenCapableContainer | null,
+  video: FullscreenCapableVideo | null,
+  doc?: any
+): Promise<void> {
+  if (container?.classList?.contains('is-css-fullscreen')) {
+    container.classList.remove('is-css-fullscreen');
+  }
+
+  if (video?.webkitDisplayingFullscreen && typeof video.webkitExitFullscreen === 'function') {
+    try {
+      video.webkitExitFullscreen();
+    } catch {
+      // ignore
+    }
+  }
+
+  const d = doc !== undefined ? doc : (typeof document !== 'undefined' ? document : null);
+  if (d && (d.fullscreenElement || d.webkitFullscreenElement)) {
+    try {
+      if (d.exitFullscreen) {
+        await d.exitFullscreen();
+      } else if (d.webkitExitFullscreen) {
+        await d.webkitExitFullscreen();
+      }
+    } catch {
+      // ignore
     }
   }
 }

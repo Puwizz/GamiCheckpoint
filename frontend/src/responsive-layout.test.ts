@@ -34,4 +34,13 @@ describe('Responsive Layout (style.css)', async () => {
     const mobileToolbarRegex = /@media\s*\(\s*max-width:\s*600px\s*\)\s*\{[\s\S]*?\.detection-toolbar\s*\{[^}]*flex-direction:\s*column;[\s\S]*?\}/;
     expect(cssContent).toMatch(mobileToolbarRegex);
   });
+
+  it('expands .verify-video-container to portrait 3/4 aspect ratio on mobile viewports (<= 600px)', () => {
+    const mobileVerifyRegex = /@media\s*\(\s*max-width:\s*600px\s*\)\s*\{[\s\S]*?\.verify-video-container\s*\{[^}]*aspect-ratio:\s*3\s*\/\s*4;[\s\S]*?\}/;
+    expect(cssContent).toMatch(mobileVerifyRegex);
+  });
+
+  it('uses object-fit: contain for fullscreen tutorial video so folds are not cropped', () => {
+    expect(cssContent).toMatch(/#tutor-video-container\.is-css-fullscreen\s+video[\s\S]*?\{[^}]*object-fit:\s*contain/);
+  });
 });

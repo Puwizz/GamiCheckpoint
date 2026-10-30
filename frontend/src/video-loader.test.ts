@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { VideoStepLoader, VideoElementTarget } from './video-loader';
+import { VideoStepLoader, VideoElementTarget, isVideoFullscreen, toggleVideoFullscreen, exitVideoFullscreenIfActive } from './video-loader';
 
 function createMockVideoElement(): VideoElementTarget & {
   listeners: Record<string, EventListenerOrEventListenerObject[]>;
@@ -11,6 +11,7 @@ function createMockVideoElement(): VideoElementTarget & {
     src: '',
     playbackRate: 1.0,
     loop: false,
+    muted: false,
     listeners,
     load: vi.fn(),
     play: vi.fn().mockResolvedValue(undefined),
@@ -203,5 +204,101 @@ describe('VideoStepLoader', () => {
     mockVideo.emit('canplay');
     expect(onSuccess1).not.toHaveBeenCalled();
     expect(onSuccess2).toHaveBeenCalledTimes(1);
+  });
+
+  it('unmutes video by default (muted = false) and respects explicit isMuted state', () => {
+    const loader = new VideoStepLoader();
+    const mockVideo = createMockVideoElement();
+    mockVideo.muted = true;
+
+    loader.load(mockVideo, '/videos/step-1.mp4', '/images/fallback.png', 1.0, false, {}, false, false);
+    expect(mockVideo.muted).toBe(false);
+
+    // Cached ready reuse with isMuted = true
+    mockVideo.src = 'http://localhost:5173/videos/step-1.mp4';
+    mockVideo.readyState = 3;
+    loader.load(mockVideo, '/videos/step-1.mp4', '/images/fallback.png', 1.0, false, {}, false, true);
+    expect(mockVideo.muted).toBe(true);
+  });
+});
+
+describe('Video Fullscreen Helpers', () => {
+  it('toggles container fullscreen using standard requestFullscreen', async () => {
+    const classSet = new Set<string>();
+    const container = {
+      classList: {
+        contains: (cls: string) => classSet.has(cls),
+        add: (cls: string) => classSet.add(cls),
+        remove: (cls: string) => classSet.delete(cls),
+      },
+      requestFullscreen: vi.fn().mockResolvedValue(undefined),
+    };
+    const video = {};
+    const mockDoc = {
+      fullscreenElement: null as any,
+      exitFullscreen: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const res1 = await toggleVideoFullscreen(container, video, mockDoc);
+    expect(res1).toBe(true);
+    expect(container.requestFullscreen).toHaveBeenCalled();
+
+    mockDoc.fullscreenElement = container;
+    expect(isVideoFullscreen(container, video, mockDoc)).toBe(true);
+
+    const res2 = await toggleVideoFullscreen(container, video, mockDoc);
+    expect(res2).toBe(false);
+    expect(mockDoc.exitFullscreen).toHaveBeenCalled();
+  });
+
+  it('falls back to video.webkitEnterFullscreen on iOS when container fullscreen fails', async () => {
+    const classSet = new Set<string>();
+    const container = {
+      classList: {
+        contains: (cls: string) => classSet.has(cls),
+        add: (cls: string) => classSet.add(cls),
+        remove: (cls: string) => classSet.delete(cls),
+      },
+      requestFullscreen: vi.fn().mockRejectedValue(new Error('Not supported')),
+    };
+    const video = {
+      webkitEnterFullscreen: vi.fn(),
+      webkitExitFullscreen: vi.fn(),
+      webkitDisplayingFullscreen: false,
+    };
+    const mockDoc = { fullscreenElement: null };
+
+    const entered = await toggleVideoFullscreen(container, video, mockDoc);
+    expect(entered).toBe(true);
+    expect(video.webkitEnterFullscreen).toHaveBeenCalled();
+
+    video.webkitDisplayingFullscreen = true;
+    expect(isVideoFullscreen(container, video, mockDoc)).toBe(true);
+
+    await exitVideoFullscreenIfActive(container, video, mockDoc);
+    expect(video.webkitExitFullscreen).toHaveBeenCalled();
+  });
+
+  it('falls back to .is-css-fullscreen class when native fullscreen APIs are missing', async () => {
+    const classSet = new Set<string>();
+    const container = {
+      classList: {
+        contains: (cls: string) => classSet.has(cls),
+        add: (cls: string) => classSet.add(cls),
+        remove: (cls: string) => classSet.delete(cls),
+      },
+    };
+    const video = {};
+    const mockDoc = {};
+
+    expect(isVideoFullscreen(container, video, mockDoc)).toBe(false);
+    const entered = await toggleVideoFullscreen(container, video, mockDoc);
+    expect(entered).toBe(true);
+    expect(container.classList.contains('is-css-fullscreen')).toBe(true);
+    expect(isVideoFullscreen(container, video, mockDoc)).toBe(true);
+
+    await exitVideoFullscreenIfActive(container, video, mockDoc);
+    expect(container.classList.contains('is-css-fullscreen')).toBe(false);
+    expect(isVideoFullscreen(container, video, mockDoc)).toBe(false);
   });
 });
