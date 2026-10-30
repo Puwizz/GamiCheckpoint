@@ -2,6 +2,7 @@ export interface VideoElementTarget {
   src: string;
   playbackRate: number;
   loop: boolean;
+  readyState?: number;
   error?: MediaError | null;
   load(): void;
   play(): Promise<void>;
@@ -15,6 +16,19 @@ export interface VideoElementTarget {
     listener: EventListenerOrEventListenerObject,
     options?: boolean | EventListenerOptions
   ): void;
+}
+
+export function isSameVideoUrl(currentSrc: string | undefined, targetUrl: string): boolean {
+  if (!currentSrc || !targetUrl) return false;
+  if (currentSrc === targetUrl) return true;
+  try {
+    const base = typeof window !== 'undefined' && window.location ? window.location.href : 'http://localhost';
+    const currUrl = new URL(currentSrc, base);
+    const targetUrlObj = new URL(targetUrl, base);
+    return currUrl.pathname === targetUrlObj.pathname && currUrl.search === targetUrlObj.search;
+  } catch {
+    return currentSrc.endsWith(targetUrl) || targetUrl.endsWith(currentSrc);
+  }
 }
 
 export interface VideoLoaderCallbacks {
@@ -37,6 +51,7 @@ export class VideoStepLoader {
     autoPlay: boolean = false
   ): number {
     const loadId = ++this.activeLoadId;
+    const wasLoadingInFlight = this.activeCleanup !== null;
 
     if (this.activeCleanup) {
       this.activeCleanup();
@@ -50,9 +65,24 @@ export class VideoStepLoader {
       return loadId;
     }
 
-    videoElement.src = videoUrl;
+    const isSameSource = isSameVideoUrl(videoElement.src, videoUrl) && !videoElement.error;
+    const isReady = typeof videoElement.readyState === 'number' ? videoElement.readyState >= 2 : false;
+
     videoElement.playbackRate = playbackSpeed;
     videoElement.loop = isLooping;
+
+    if (isSameSource && isReady) {
+      callbacks.onSuccess?.();
+      if (autoPlay) {
+        videoElement.play().catch(() => {});
+      }
+      return loadId;
+    }
+
+    const shouldStartFreshLoad = !isSameSource || !wasLoadingInFlight;
+    if (shouldStartFreshLoad) {
+      videoElement.src = videoUrl;
+    }
 
     const onCanPlay = () => {
       if (loadId !== this.activeLoadId) return;
@@ -85,7 +115,9 @@ export class VideoStepLoader {
     this.activeCleanup = cleanup;
     videoElement.addEventListener('canplay', onCanPlay, { once: true });
     videoElement.addEventListener('error', onError, { once: true });
-    videoElement.load();
+    if (shouldStartFreshLoad) {
+      videoElement.load();
+    }
 
     return loadId;
   }

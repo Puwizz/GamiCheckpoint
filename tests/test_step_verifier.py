@@ -291,3 +291,112 @@ def test_step_verifier_coaching_hint_ambiguous_with_and_without_runner_up():
     )
 
 
+
+
+def test_step_prior_distant_step_rejected_at_standard_confidence():
+    adapter = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk3", confidence=0.55, bbox=(10, 20, 100, 120))
+    ])
+    verifier = StepVerifier(
+        detector=adapter,
+        classes=("Chk1", "Chk2", "Chk3", "Chk4", "Chk5", "Chk6"),
+        conf_threshold=0.55,
+        min_top_gap=8.0,
+    )
+    frame = create_bright_frame()
+    result = verifier.verify_bgr(frame, expected_step=1)
+
+    assert result.frame_ready is True
+    assert result.recognized is False
+    assert result.recognition_reason == "low_confidence"
+    assert result.prediction == "Chk3"
+    assert result.confidence == 55.0
+    assert result.recognition_thresholds["min_confidence"] == 70.0
+
+
+def test_step_prior_adjacent_and_current_step_accepted_at_standard_confidence():
+    # Current step (Chk1, distance 0)
+    adapter1 = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk1", confidence=0.55, bbox=(10, 20, 100, 120))
+    ])
+    verifier1 = StepVerifier(
+        detector=adapter1,
+        classes=("Chk1", "Chk2", "Chk3", "Chk4", "Chk5", "Chk6"),
+        conf_threshold=0.55,
+        min_top_gap=8.0,
+    )
+    frame = create_bright_frame()
+    result1 = verifier1.verify_bgr(frame, expected_step=1)
+    assert result1.recognized is True
+    assert result1.recognition_thresholds["min_confidence"] == 55.0
+
+    # Adjacent step (Chk2, distance 1)
+    adapter2 = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk2", confidence=0.55, bbox=(10, 20, 100, 120))
+    ])
+    verifier2 = StepVerifier(
+        detector=adapter2,
+        classes=("Chk1", "Chk2", "Chk3", "Chk4", "Chk5", "Chk6"),
+        conf_threshold=0.55,
+        min_top_gap=8.0,
+    )
+    result2 = verifier2.verify_bgr(frame, expected_step=1)
+    assert result2.recognized is True
+    assert result2.recognition_thresholds["min_confidence"] == 55.0
+
+
+def test_step_prior_distant_step_accepted_at_high_confidence():
+    adapter = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk3", confidence=0.75, bbox=(10, 20, 100, 120))
+    ])
+    verifier = StepVerifier(
+        detector=adapter,
+        classes=("Chk1", "Chk2", "Chk3", "Chk4", "Chk5", "Chk6"),
+        conf_threshold=0.55,
+        min_top_gap=8.0,
+    )
+    frame = create_bright_frame()
+    result = verifier.verify_bgr(frame, expected_step=1)
+    assert result.recognized is True
+    assert result.prediction == "Chk3"
+    assert result.confidence == 75.0
+    assert result.recognition_thresholds["min_confidence"] == 70.0
+
+
+def test_step_prior_no_expected_step_uses_base_threshold():
+    adapter = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk3", confidence=0.55, bbox=(10, 20, 100, 120))
+    ])
+    verifier = StepVerifier(
+        detector=adapter,
+        classes=("Chk1", "Chk2", "Chk3", "Chk4", "Chk5", "Chk6"),
+        conf_threshold=0.55,
+        min_top_gap=8.0,
+    )
+    frame = create_bright_frame()
+    result = verifier.verify_bgr(frame, expected_step=None)
+    assert result.recognized is True
+    assert result.confidence == 55.0
+    assert result.recognition_thresholds["min_confidence"] == 55.0
+
+
+def test_step_prior_dampens_distant_step_when_competing_with_expected_step():
+    adapter = SyntheticDetectorAdapter(detections=[
+        Detection(class_name="Chk3", confidence=0.60, bbox=(10, 20, 100, 120)),
+        Detection(class_name="Chk1", confidence=0.58, bbox=(12, 22, 98, 118)),
+    ])
+    verifier = StepVerifier(
+        detector=adapter,
+        classes=("Chk1", "Chk2", "Chk3", "Chk4", "Chk5", "Chk6"),
+        conf_threshold=0.55,
+        min_top_gap=8.0,
+    )
+    frame = create_bright_frame()
+    result = verifier.verify_bgr(frame, expected_step=1)
+
+    assert result.frame_ready is True
+    assert result.recognized is True
+    assert result.prediction == "Chk1"
+    assert result.step_number == 1
+    assert result.confidence == 58.0
+    assert result.recognition_thresholds["min_confidence"] == 55.0

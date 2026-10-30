@@ -162,6 +162,7 @@ class StepVerifier:
         step_names: Optional[Dict[str, str]] = None,
         conf_threshold: Optional[float] = None,
         imgsz: int = 640,
+        step_prior_penalty: float = 15.0,
     ):
         if conf_threshold is not None:
             self.min_confidence = round(conf_threshold * 100.0, 2) if conf_threshold <= 1.0 else round(conf_threshold, 2)
@@ -176,6 +177,7 @@ class StepVerifier:
         self.imgsz = imgsz
         self.detector = detector
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.step_prior_penalty = float(step_prior_penalty)
 
         if self.detector is None:
             raise ValueError(
@@ -309,19 +311,38 @@ class StepVerifier:
                 class_max_conf[d.class_name] = conf_val
                 class_best_det[d.class_name] = d
 
-        sorted_classes = sorted(class_max_conf.items(), key=lambda item: item[1], reverse=True)
+        def _prior_penalty_for_class(cls_name: str) -> float:
+            if expected_step is None or expected_step <= 0 or cls_name == "Chk0_NonOrigami":
+                return 0.0
+            try:
+                p_num = step_number(cls_name)
+                if p_num is not None and abs(p_num - expected_step) > 1:
+                    return self.step_prior_penalty
+            except Exception:
+                pass
+            return 0.0
+
+        def _raw_pct(raw_val: float) -> float:
+            return round(raw_val * 100.0 if raw_val <= 1.0 else raw_val, 2)
+
+        sorted_classes = sorted(
+            class_max_conf.items(),
+            key=lambda item: (_raw_pct(item[1]) - _prior_penalty_for_class(item[0]), item[1]),
+            reverse=True,
+        )
         if not sorted_classes:
-            return self._no_origami_result(w, h, frame_metrics)
+            return self._no_origami_result(w, h, frame_metrics, expected_step=expected_step)
 
         best_cls_name, best_raw_conf = sorted_classes[0]
         best_det = class_best_det[best_cls_name]
 
-        confidence_percent = round(best_raw_conf * 100.0 if best_raw_conf <= 1.0 else best_raw_conf, 2)
+        confidence_percent = _raw_pct(best_raw_conf)
+        best_prior_adjusted = confidence_percent - _prior_penalty_for_class(best_cls_name)
 
         if len(sorted_classes) >= 2:
-            runner_up_raw = sorted_classes[1][1]
-            runner_up_percent = round(runner_up_raw * 100.0 if runner_up_raw <= 1.0 else runner_up_raw, 2)
-            top_gap = round(confidence_percent - runner_up_percent, 2)
+            runner_up_cls, runner_up_raw = sorted_classes[1]
+            runner_up_adjusted = _raw_pct(runner_up_raw) - _prior_penalty_for_class(runner_up_cls)
+            top_gap = round(best_prior_adjusted - runner_up_adjusted, 2)
         else:
             top_gap = confidence_percent
 
@@ -339,13 +360,14 @@ class StepVerifier:
                 "confidence": conf_pct,
             })
 
+        effective_min_conf = min(100.0, self.min_confidence + _prior_penalty_for_class(best_cls_name))
         if best_cls_name == "Chk0_NonOrigami":
             recognized = False
             recognition_reason = "non_origami"
         else:
-            recognized = (confidence_percent >= self.min_confidence and top_gap >= self.min_top_gap)
+            recognized = (confidence_percent >= effective_min_conf and top_gap >= self.min_top_gap)
             if not recognized:
-                if confidence_percent < self.min_confidence:
+                if confidence_percent < effective_min_conf:
                     recognition_reason = "low_confidence"
                 else:
                     recognition_reason = "ambiguous_step"
@@ -405,7 +427,7 @@ class StepVerifier:
             confidence=confidence_percent,
             top_gap=top_gap,
             recognition_thresholds={
-                "min_confidence": self.min_confidence,
+                "min_confidence": effective_min_conf,
                 "min_top_gap": self.min_top_gap,
             },
             roi=roi_data,
