@@ -155,4 +155,53 @@ describe('VideoStepLoader', () => {
     expect(onSuccess).not.toHaveBeenCalled();
     expect(onFallback).not.toHaveBeenCalled();
   });
+
+  it('reuses existing video source when videoUrl is identical and readyState >= 2 (avoids reload stall)', () => {
+    const loader = new VideoStepLoader();
+    const mockVideo = createMockVideoElement();
+    mockVideo.src = 'http://localhost:5173/videos/step-1.mp4';
+    mockVideo.readyState = 3; // HAVE_FUTURE_DATA
+
+    const onStart = vi.fn();
+    const onSuccess = vi.fn();
+    const onFallback = vi.fn();
+
+    loader.load(mockVideo, '/videos/step-1.mp4', '/images/fallback.png', 1.5, true, {
+      onStart,
+      onSuccess,
+      onFallback,
+    });
+
+    expect(onStart).toHaveBeenCalled();
+    expect(mockVideo.load).not.toHaveBeenCalled();
+    expect(mockVideo.playbackRate).toBe(1.5);
+    expect(mockVideo.loop).toBe(true);
+    expect(onSuccess).toHaveBeenCalled();
+    expect(onFallback).not.toHaveBeenCalled();
+  });
+
+  it('does not call video.load() a second time when an identical videoUrl is already loading in-flight', () => {
+    const loader = new VideoStepLoader();
+    const mockVideo = createMockVideoElement();
+    const onSuccess1 = vi.fn();
+    const onSuccess2 = vi.fn();
+
+    loader.load(mockVideo, '/videos/step-1.mp4', '/images/fallback.png', 1.0, false, {
+      onSuccess: onSuccess1,
+    });
+    expect(mockVideo.load).toHaveBeenCalledTimes(1);
+
+    mockVideo.readyState = 0;
+    loader.load(mockVideo, '/videos/step-1.mp4', '/images/fallback.png', 1.25, true, {
+      onSuccess: onSuccess2,
+    });
+
+    expect(mockVideo.load).toHaveBeenCalledTimes(1);
+    expect(mockVideo.playbackRate).toBe(1.25);
+    expect(mockVideo.loop).toBe(true);
+
+    mockVideo.emit('canplay');
+    expect(onSuccess1).not.toHaveBeenCalled();
+    expect(onSuccess2).toHaveBeenCalledTimes(1);
+  });
 });

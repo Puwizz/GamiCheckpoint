@@ -496,6 +496,18 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         onSuccess: () => {
           if (videoLoadingOverlay) videoLoadingOverlay.classList.add('hidden');
+          if (Number.isFinite(tutorialVideo.duration) && tutorialVideo.duration > 0) {
+            if (videoTimeDuration) {
+              videoTimeDuration.textContent = formatVideoTime(tutorialVideo.duration);
+            }
+            if (videoTimeCurrent) {
+              videoTimeCurrent.textContent = formatVideoTime(tutorialVideo.currentTime);
+            }
+            if (videoTimelineSlider) {
+              const percent = (tutorialVideo.currentTime / tutorialVideo.duration) * 100;
+              videoTimelineSlider.value = percent.toFixed(1);
+            }
+          }
           updateVideoPlayUI('paused');
         },
         onFallback: (fallbackUrl) => {
@@ -1211,17 +1223,12 @@ document.addEventListener('DOMContentLoaded', () => {
       fallbackImageUrl: s.fallback_image_url,
     }));
 
-    // Configure session engine & coordinator
-    sessionEngine.reconfigure(fig.total_steps, activeStepDefs);
-    tutor.reconfigure(fig.total_steps, activeGuides, `gamisenpai_progress_${fig.id}`);
-    sessionEngine.setStep(tutor.getCurrentStep(), tutor.getCompletedSteps());
-
     // Update Header Navigation UI
     if (btnBackToGallery) btnBackToGallery.classList.remove('hidden');
     if (workspaceFigureTag) workspaceFigureTag.textContent = `กำลังฝึกพับ: ${fig.title_th}`;
     if (brandHeaderTag) brandHeaderTag.textContent = 'ORIGAMI STUDIO';
 
-    // Switch View
+    // Switch View before reconfiguring tutor so video loads once while visible
     viewGallery?.classList.add('hidden');
     viewWorkspace?.classList.remove('hidden');
 
@@ -1229,9 +1236,9 @@ document.addEventListener('DOMContentLoaded', () => {
     completionModal?.classList.add('hidden');
     celebrationModal?.classList.add('hidden');
 
-    // Render Workspace UI for current restored step
-    updateCurrentStepUI();
-    loadVideoForStep(tutor.getCurrentStep());
+    // Configure session engine & coordinator (triggers onStepChange -> updateCurrentStepUI & loadVideoForStep)
+    sessionEngine.reconfigure(fig.total_steps, activeStepDefs);
+    tutor.reconfigure(fig.total_steps, activeGuides, `gamisenpai_progress_${fig.id}`);
     applyModeUI(tutor.getMode());
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
