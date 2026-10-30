@@ -2,7 +2,7 @@ import { StepSessionEngine, UIStatusState } from './session-engine';
 import { DetectionOverlayRenderer, formatRoiMethod } from './hud-overlay';
 import { CameraStreamAdapter } from './camera';
 import { TutorialCoordinator } from './tutorial-coordinator';
-import { VideoStepLoader } from './video-loader';
+import { VideoStepLoader, isVideoFullscreen, toggleVideoFullscreen, exitVideoFullscreenIfActive } from './video-loader';
 import {
   TOTAL_STEPS,
   STEPS,
@@ -60,6 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSpeed075 = document.getElementById('btn-speed-075') as HTMLButtonElement | null;
   const btnSpeed10 = document.getElementById('btn-speed-10') as HTMLButtonElement | null;
   const btnVideoLoop = document.getElementById('btn-video-loop') as HTMLButtonElement | null;
+  const tutorVideoContainer = document.getElementById('tutor-video-container') as HTMLElement | null;
+  const btnVideoFullscreen = document.getElementById('btn-video-fullscreen') as HTMLButtonElement | null;
+  const btnVideoFullscreenCorner = document.getElementById('btn-video-fullscreen-corner') as HTMLButtonElement | null;
   const btnVideoMute = document.getElementById('btn-video-mute') as HTMLButtonElement | null;
   const videoTimelineContainer = document.getElementById('video-timeline-container');
   const videoTimelineSlider = document.getElementById('video-timeline-slider') as HTMLInputElement | null;
@@ -149,6 +152,27 @@ document.addEventListener('DOMContentLoaded', () => {
   let flowVersion = 0;
   let activePredictAbortController: AbortController | null = null;
   let userSelectedDeviceId = '';
+  let isVideoMuted = false;
+
+  function syncVideoMuteUI(): void {
+    if (tutorialVideo) tutorialVideo.muted = isVideoMuted;
+    if (btnVideoMute) {
+      btnVideoMute.textContent = isVideoMuted ? 'เสียง: ปิด' : 'เสียง: เปิด';
+      btnVideoMute.classList.toggle('active', !isVideoMuted);
+    }
+  }
+
+  function updateVideoFullscreenUI(): void {
+    const isFs = isVideoFullscreen(tutorVideoContainer, tutorialVideo);
+    if (btnVideoFullscreen) {
+      btnVideoFullscreen.textContent = isFs ? 'ย่อจอ' : 'เต็มจอ';
+      btnVideoFullscreen.classList.toggle('active', isFs);
+    }
+    if (btnVideoFullscreenCorner) {
+      btnVideoFullscreenCorner.setAttribute('aria-label', isFs ? 'ย่อวิดีโอกลับ' : 'ขยายวิดีโอเต็มจอ');
+      btnVideoFullscreenCorner.title = isFs ? 'ย่อจอ' : 'เต็มจอ';
+    }
+  }
 
   // --- Initialize Tutorial Coordinator ---
   const tutor = new TutorialCoordinator({
@@ -458,6 +482,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       tutorialVideo.play().catch((err) => {
         console.warn('[Tutor] Video play request was prevented:', err);
+        if (!isVideoMuted && tutorialVideo) {
+          isVideoMuted = true;
+          syncVideoMuteUI();
+          tutorialVideo.play().catch((e) => {
+            console.warn('[Tutor] Muted playback retry failed:', e);
+          });
+        }
       });
     } else {
       tutorialVideo.pause();
@@ -489,10 +520,15 @@ document.addEventListener('DOMContentLoaded', () => {
           if (videoTimeCurrent) videoTimeCurrent.textContent = '00:00';
           if (videoTimeDuration) videoTimeDuration.textContent = '00:00';
           if (btnVideoLoop) btnVideoLoop.disabled = false;
-          if (btnVideoMute) btnVideoMute.disabled = false;
+          if (btnVideoMute) {
+            btnVideoMute.disabled = false;
+            syncVideoMuteUI();
+          }
           if (btnSpeed05) btnSpeed05.disabled = false;
           if (btnSpeed075) btnSpeed075.disabled = false;
           if (btnSpeed10) btnSpeed10.disabled = false;
+          if (btnVideoFullscreen) btnVideoFullscreen.disabled = false;
+          if (btnVideoFullscreenCorner) btnVideoFullscreenCorner.classList.remove('hidden');
         },
         onSuccess: () => {
           if (videoLoadingOverlay) videoLoadingOverlay.classList.add('hidden');
@@ -515,11 +551,14 @@ document.addEventListener('DOMContentLoaded', () => {
           triggerFallback(fallbackUrl);
         },
       },
-      false
+      false,
+      isVideoMuted
     );
   }
 
   function triggerFallback(fallbackImageUrl: string): void {
+    exitVideoFullscreenIfActive(tutorVideoContainer, tutorialVideo);
+    updateVideoFullscreenUI();
     videoLoader.cancel();
     if (videoLoadingOverlay) videoLoadingOverlay.classList.add('hidden');
     if (btnVideoOverlayPlay) btnVideoOverlayPlay.classList.add('hidden');
@@ -537,6 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (btnSpeed05) btnSpeed05.disabled = true;
       if (btnSpeed075) btnSpeed075.disabled = true;
       if (btnSpeed10) btnSpeed10.disabled = true;
+      if (btnVideoFullscreen) btnVideoFullscreen.disabled = true;
+      if (btnVideoFullscreenCorner) btnVideoFullscreenCorner.classList.add('hidden');
     }
     if (videoFallbackContainer && fallbackGuideImage) {
       fallbackGuideImage.onerror = () => {
@@ -574,6 +615,8 @@ document.addEventListener('DOMContentLoaded', () => {
         description: 'ดูวิดีโอสอนพับกระดาษตามขั้นตอน เมื่อพับเสร็จแล้วให้กดปุ่มเปิดกล้องเพื่อตรวจ',
       });
     } else {
+      exitVideoFullscreenIfActive(tutorVideoContainer, tutorialVideo);
+      updateVideoFullscreenUI();
       watchStage?.classList.add('hidden');
       verifyStage?.classList.remove('hidden');
       hudOverlay.resize();
@@ -1246,6 +1289,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function returnToGallery(): void {
+    exitVideoFullscreenIfActive(tutorVideoContainer, tutorialVideo);
+    updateVideoFullscreenUI();
     videoLoader.cancel();
     stopCamera();
     if (tutorialVideo) {
@@ -1369,9 +1414,38 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   btnVideoMute?.addEventListener('click', () => {
-    if (!tutorialVideo) return;
-    tutorialVideo.muted = !tutorialVideo.muted;
-    btnVideoMute.textContent = tutorialVideo.muted ? 'เสียง: ปิด' : 'เสียง: เปิด';
+    isVideoMuted = !isVideoMuted;
+    syncVideoMuteUI();
+  });
+
+  btnVideoFullscreen?.addEventListener('click', async () => {
+    await toggleVideoFullscreen(tutorVideoContainer, tutorialVideo);
+    updateVideoFullscreenUI();
+  });
+
+  btnVideoFullscreenCorner?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await toggleVideoFullscreen(tutorVideoContainer, tutorialVideo);
+    updateVideoFullscreenUI();
+  });
+
+  tutorialVideo?.addEventListener('dblclick', async () => {
+    await toggleVideoFullscreen(tutorVideoContainer, tutorialVideo);
+    updateVideoFullscreenUI();
+  });
+
+  window.addEventListener('orientationchange', () => {
+    hudOverlay.resize();
+  });
+  document.addEventListener('fullscreenchange', updateVideoFullscreenUI);
+  document.addEventListener('webkitfullscreenchange', updateVideoFullscreenUI);
+  tutorialVideo?.addEventListener('webkitbeginfullscreen', updateVideoFullscreenUI);
+  tutorialVideo?.addEventListener('webkitendfullscreen', updateVideoFullscreenUI);
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isVideoFullscreen(tutorVideoContainer, tutorialVideo)) {
+      exitVideoFullscreenIfActive(tutorVideoContainer, tutorialVideo);
+      updateVideoFullscreenUI();
+    }
   });
 
   // Camera toolbar & settings

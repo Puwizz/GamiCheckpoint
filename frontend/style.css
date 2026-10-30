@@ -278,6 +278,57 @@ main {
     cursor: pointer;
 }
 
+.video-fullscreen-corner-btn {
+    position: absolute;
+    bottom: var(--space-xs);
+    right: var(--space-xs);
+    background: rgba(22, 21, 20, 0.72);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 12;
+    transition: all var(--dur-tactile) var(--ease-tactile);
+}
+
+.video-fullscreen-corner-btn:hover {
+    background: rgba(22, 21, 20, 0.9);
+    transform: scale(1.08);
+}
+
+#tutor-video-container:fullscreen,
+#tutor-video-container:-webkit-full-screen,
+#tutor-video-container.is-css-fullscreen {
+    background: #000000 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+}
+
+#tutor-video-container.is-css-fullscreen {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 99999 !important;
+}
+
+#tutor-video-container:fullscreen video,
+#tutor-video-container:-webkit-full-screen video,
+#tutor-video-container.is-css-fullscreen video {
+    object-fit: contain !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
 .video-overlay-play-btn {
     position: absolute;
     top: 50%;
@@ -1777,6 +1828,12 @@ footer {
 @media (max-width: 600px) {
     body {
         padding: var(--space-xs) 8px;
+    }
+
+    .verify-video-container {
+        aspect-ratio: 3 / 4;
+        min-height: min(62dvh, 480px);
+        max-height: 72dvh;
     }
 
     .container {
