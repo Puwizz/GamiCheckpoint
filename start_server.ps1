@@ -10,15 +10,6 @@ $Python = if (Test-Path '.\.venv\Scripts\python.exe') {
     'python'
 }
 
-# Auto-optimize and sync videos if any new files were added
-if (Test-Path '.\tools\apply_faststart.ps1') {
-    try {
-        & powershell -ExecutionPolicy Bypass -File .\tools\apply_faststart.ps1 | Out-Null
-    } catch {
-        # Non-fatal if video sync has minor warning
-    }
-}
-
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "  GamiSenpai - Multi-Origami Web Server  " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan

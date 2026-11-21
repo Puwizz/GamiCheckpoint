@@ -17,6 +17,7 @@ from step_config import STEP_CLASSES
 
 BASE_DIR = os.path.dirname(__file__)
 STATIC_DIR = os.path.join(BASE_DIR, "..", "frontend", "dist")
+VIDEOS_DIR = os.path.join(BASE_DIR, "..", "frontend", "public", "videos")
 
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
@@ -255,6 +256,9 @@ async def predict_frame(
             detail="Internal inference error occurred while processing the frame.",
         )
 
+
+if os.path.exists(VIDEOS_DIR):
+    app.mount("/videos", StaticFiles(directory=VIDEOS_DIR), name="videos")
 
 if os.path.exists(STATIC_DIR):
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

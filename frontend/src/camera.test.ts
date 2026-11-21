@@ -318,4 +318,192 @@ describe('CameraStreamAdapter', () => {
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
     });
   });
+
+  it('identifies camera_placeholder_or_too_dark when frame is black', () => {
+    const videoEl = createMockVideoElement();
+    const adapter = new CameraStreamAdapter(videoEl);
+    const data = new Uint8ClampedArray(640 * 480 * 4); // all 0 (black)
+    const mockCtx = {
+      getImageData: vi.fn().mockReturnValue({ data }),
+    } as unknown as CanvasRenderingContext2D;
+
+    const quality = (adapter as any).analyzeCanvasQuality(mockCtx, 640, 480);
+    expect(quality.ready).toBe(false);
+    expect(quality.reason).toBe('camera_placeholder_or_too_dark');
+  });
+
+  it('identifies frame_has_too_little_detail when frame is flat gray with no contrast', () => {
+    const videoEl = createMockVideoElement();
+    const adapter = new CameraStreamAdapter(videoEl);
+    const data = new Uint8ClampedArray(640 * 480 * 4);
+    data.fill(128); // flat gray
+    const mockCtx = {
+      getImageData: vi.fn().mockReturnValue({ data }),
+    } as unknown as CanvasRenderingContext2D;
+
+    const quality = (adapter as any).analyzeCanvasQuality(mockCtx, 640, 480);
+    expect(quality.ready).toBe(false);
+    expect(quality.reason).toBe('frame_has_too_little_detail');
+  });
+
+  it('identifies ok when frame has good brightness and contrast', () => {
+    const videoEl = createMockVideoElement();
+    const adapter = new CameraStreamAdapter(videoEl);
+    const data = new Uint8ClampedArray(640 * 480 * 4);
+    for (let i = 0; i < data.length; i += 8) {
+      data[i] = 200; data[i + 1] = 200; data[i + 2] = 200;
+      data[i + 4] = 50; data[i + 5] = 50; data[i + 6] = 50;
+    }
+    const mockCtx = {
+      getImageData: vi.fn().mockReturnValue({ data }),
+    } as unknown as CanvasRenderingContext2D;
+
+    const quality = (adapter as any).analyzeCanvasQuality(mockCtx, 640, 480);
+    expect(quality.ready).toBe(true);
+    expect(quality.reason).toBe('ok');
+  });
+
+  it('returns empty_frame from captureFrameBlob when video dimensions are 0x0', async () => {
+    const videoEl = createMockVideoElement();
+    (videoEl as any).videoWidth = 0;
+    (videoEl as any).videoHeight = 0;
+    const adapter = new CameraStreamAdapter(videoEl);
+
+    const res = await adapter.captureFrameBlob(640, 0.7);
+    expect(res.blob).toBeNull();
+    expect(res.quality.ready).toBe(false);
+    expect(res.quality.reason).toBe('empty_frame');
+    expect(res.captureWidth).toBe(0);
+    expect(res.captureHeight).toBe(0);
+  });
+
+  it('returns empty_frame from captureFrameBlob when canvas 2d context is null', async () => {
+    const videoEl = createMockVideoElement();
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue(null),
+      toBlob: vi.fn(),
+    };
+    const originalDocument = (globalThis as any).document;
+    (globalThis as any).document = { createElement: vi.fn().mockReturnValue(mockCanvas) };
+
+    try {
+      const adapter = new CameraStreamAdapter(videoEl);
+      const res = await adapter.captureFrameBlob(640, 0.7);
+      expect(mockCanvas.getContext).toHaveBeenCalledWith('2d', { willReadFrequently: true });
+      expect(res.blob).toBeNull();
+      expect(res.quality.ready).toBe(false);
+      expect(res.quality.reason).toBe('empty_frame');
+      expect(mockCanvas.toBlob).not.toHaveBeenCalled();
+    } finally {
+      (globalThis as any).document = originalDocument;
+    }
+  });
+
+  it('rejects dark frame in captureFrameBlob with camera_placeholder_or_too_dark without calling toBlob', async () => {
+    const videoEl = createMockVideoElement();
+    const mockCtx = {
+      drawImage: vi.fn(),
+      getImageData: vi.fn((_sx: number, _sy: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4),
+      })),
+    };
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue(mockCtx),
+      toBlob: vi.fn(),
+    };
+    const originalDocument = (globalThis as any).document;
+    (globalThis as any).document = { createElement: vi.fn().mockReturnValue(mockCanvas) };
+
+    try {
+      const adapter = new CameraStreamAdapter(videoEl);
+      const res = await adapter.captureFrameBlob(640, 0.7);
+      expect(res.blob).toBeNull();
+      expect(res.quality.ready).toBe(false);
+      expect(res.quality.reason).toBe('camera_placeholder_or_too_dark');
+      expect(mockCanvas.toBlob).not.toHaveBeenCalled();
+    } finally {
+      (globalThis as any).document = originalDocument;
+    }
+  });
+
+  it('rejects low-contrast frame in captureFrameBlob with frame_has_too_little_detail without calling toBlob', async () => {
+    const videoEl = createMockVideoElement();
+    const mockCtx = {
+      drawImage: vi.fn(),
+      getImageData: vi.fn((_sx: number, _sy: number, w: number, h: number) => {
+        const data = new Uint8ClampedArray(w * h * 4);
+        data.fill(128);
+        return { data };
+      }),
+    };
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue(mockCtx),
+      toBlob: vi.fn(),
+    };
+    const originalDocument = (globalThis as any).document;
+    (globalThis as any).document = { createElement: vi.fn().mockReturnValue(mockCanvas) };
+
+    try {
+      const adapter = new CameraStreamAdapter(videoEl);
+      const res = await adapter.captureFrameBlob(640, 0.7);
+      expect(res.blob).toBeNull();
+      expect(res.quality.ready).toBe(false);
+      expect(res.quality.reason).toBe('frame_has_too_little_detail');
+      expect(mockCanvas.toBlob).not.toHaveBeenCalled();
+    } finally {
+      (globalThis as any).document = originalDocument;
+    }
+  });
+
+  it('returns empty_frame when getImageData buffer is empty', async () => {
+    const videoEl = createMockVideoElement();
+    const mockCtx = {
+      drawImage: vi.fn(),
+      getImageData: vi.fn().mockReturnValue({ data: new Uint8ClampedArray(0) }),
+    };
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue(mockCtx),
+      toBlob: vi.fn(),
+    };
+    const originalDocument = (globalThis as any).document;
+    (globalThis as any).document = { createElement: vi.fn().mockReturnValue(mockCanvas) };
+
+    try {
+      const adapter = new CameraStreamAdapter(videoEl);
+      const res = await adapter.captureFrameBlob(640, 0.7);
+      expect(res.blob).toBeNull();
+      expect(res.quality.ready).toBe(false);
+      expect(res.quality.reason).toBe('empty_frame');
+    } finally {
+      (globalThis as any).document = originalDocument;
+    }
+  });
+
+  it('uses Rec.601 luma weights matching OpenCV BGR2GRAY', () => {
+    const videoEl = createMockVideoElement();
+    const adapter = new CameraStreamAdapter(videoEl);
+    const data = new Uint8ClampedArray(100 * 100 * 4);
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 0;
+      data[i + 1] = 0;
+      data[i + 2] = 255;
+      data[i + 3] = 255;
+    }
+    const mockCtx = {
+      getImageData: vi.fn().mockReturnValue({ data }),
+    } as unknown as CanvasRenderingContext2D;
+
+    const quality = (adapter as any).analyzeCanvasQuality(mockCtx, 100, 100);
+    expect(quality.meanLuma).toBeCloseTo(29.07, 1);
+    expect(quality.ready).toBe(false);
+    expect(quality.reason).toBe('frame_has_too_little_detail');
+  });
 });

@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const videoTimeCurrent = document.getElementById('video-time-current');
   const videoTimeDuration = document.getElementById('video-time-duration');
   let isUserSeeking = false;
+  let videoClickTimer: number | null = null;
   const btnStartVerify = document.getElementById('btn-start-verify') as HTMLButtonElement | null;
 
   // --- DOM Elements: Camera & AI Verification (Verify View) ---
@@ -171,6 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnVideoFullscreenCorner) {
       btnVideoFullscreenCorner.setAttribute('aria-label', isFs ? 'ย่อวิดีโอกลับ' : 'ขยายวิดีโอเต็มจอ');
       btnVideoFullscreenCorner.title = isFs ? 'ย่อจอ' : 'เต็มจอ';
+      btnVideoFullscreenCorner.innerHTML = isFs
+        ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
     }
   }
 
@@ -480,9 +484,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tutorialVideo.ended) {
         tutorialVideo.currentTime = 0;
       }
-      tutorialVideo.play().catch((err) => {
+      tutorialVideo.play().catch((err: unknown) => {
         console.warn('[Tutor] Video play request was prevented:', err);
-        if (!isVideoMuted && tutorialVideo) {
+        const errName = (err as { name?: string })?.name;
+        if (errName === 'NotAllowedError' && !isVideoMuted && tutorialVideo) {
           isVideoMuted = true;
           syncVideoMuteUI();
           tutorialVideo.play().catch((e) => {
@@ -678,6 +683,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function startCamera(): Promise<void> {
     try {
+      if (activePredictAbortController) {
+        activePredictAbortController.abort();
+        activePredictAbortController = null;
+      }
+      clearPredictLoop();
+      hudOverlay.clear();
+      flowVersion += 1;
+
       const requestedDeviceId = userSelectedDeviceId;
       const requestedLabel =
         (requestedDeviceId && cameraSelect?.options[cameraSelect.selectedIndex]?.text) || 'กล้องหลัก';
@@ -772,6 +785,19 @@ document.addEventListener('DOMContentLoaded', () => {
     setCameraHint('กล้องปิดอยู่ — กรุณาเลือกกล้องแล้วกด "เปิดกล้องตรวจจับ"', 'info');
 
     flowVersion += 1;
+
+    if (
+      tutor.getMode() === 'verify' &&
+      !tutor.getIsCelebrating() &&
+      tutor.getCurrentStep() <= tutor.getTotalSteps()
+    ) {
+      setStatusBox({
+        kind: 'waiting',
+        icon: '📷',
+        title: 'กล้องปิดอยู่',
+        description: 'กดปุ่ม "เปิดกล้องตรวจจับ" เพื่อเริ่มตรวจเช็คขั้นตอนปัจจุบัน',
+      });
+    }
   }
 
   function clearPredictLoop(): void {
@@ -825,12 +851,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (roiMethodBadge) roiMethodBadge.classList.add('hidden');
         if (lblStep) lblStep.textContent = '-';
         if (lblConfidence) lblConfidence.textContent = '0%';
-        setStatusBox({
-          kind: 'waiting',
-          icon: '...',
-          title: 'ส่องไปที่กระดาษโอริกามิ',
-          description: 'ส่องไปที่กระดาษโอริกามิเพื่อตรวจเช็คขั้นตอนปัจจุบัน',
+
+        const unreadyReason = !quality.ready ? quality.reason : 'empty_frame';
+        const action = sessionEngine.evaluatePrediction({
+          frame_ready: false,
+          recognized: false,
+          reason: unreadyReason,
         });
+        setStatusBox(action.status);
         return;
       }
 
@@ -1289,6 +1317,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function returnToGallery(): void {
+    if (videoClickTimer !== null) {
+      window.clearTimeout(videoClickTimer);
+      videoClickTimer = null;
+    }
     exitVideoFullscreenIfActive(tutorVideoContainer, tutorialVideo);
     updateVideoFullscreenUI();
     videoLoader.cancel();
@@ -1343,7 +1375,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   tutorialVideo?.addEventListener('click', () => {
-    toggleVideoPlayback();
+    if (videoClickTimer !== null) {
+      window.clearTimeout(videoClickTimer);
+    }
+    videoClickTimer = window.setTimeout(() => {
+      videoClickTimer = null;
+      toggleVideoPlayback();
+    }, 200);
   });
 
   tutorialVideo?.addEventListener('play', () => {
@@ -1405,11 +1443,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  videoTimelineSlider?.addEventListener('change', () => {
-    if (tutorialVideo && Number.isFinite(tutorialVideo.duration) && tutorialVideo.duration > 0) {
+  const finishTimelineSeek = (forceSeek: boolean = false): void => {
+    if (!forceSeek && !isUserSeeking) return;
+    if (tutorialVideo && Number.isFinite(tutorialVideo.duration) && tutorialVideo.duration > 0 && videoTimelineSlider) {
       const targetTime = (parseFloat(videoTimelineSlider.value) / 100) * tutorialVideo.duration;
       tutorialVideo.currentTime = targetTime;
     }
+    isUserSeeking = false;
+  };
+
+  videoTimelineSlider?.addEventListener('change', () => finishTimelineSeek(true));
+  videoTimelineSlider?.addEventListener('pointerup', () => finishTimelineSeek(false));
+  videoTimelineSlider?.addEventListener('touchend', () => finishTimelineSeek(false));
+  videoTimelineSlider?.addEventListener('pointercancel', () => {
+    isUserSeeking = false;
+  });
+  videoTimelineSlider?.addEventListener('touchcancel', () => {
+    isUserSeeking = false;
+  });
+  videoTimelineSlider?.addEventListener('blur', () => {
     isUserSeeking = false;
   });
 
@@ -1430,6 +1482,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   tutorialVideo?.addEventListener('dblclick', async () => {
+    if (videoClickTimer !== null) {
+      window.clearTimeout(videoClickTimer);
+      videoClickTimer = null;
+    }
     await toggleVideoFullscreen(tutorVideoContainer, tutorialVideo);
     updateVideoFullscreenUI();
   });
@@ -1517,6 +1573,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   window.addEventListener('beforeunload', () => {
+    if (videoClickTimer !== null) {
+      window.clearTimeout(videoClickTimer);
+      videoClickTimer = null;
+    }
     stopCamera();
     videoLoader.cancel();
     tutor.destroy();

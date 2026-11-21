@@ -37,6 +37,7 @@ skills-lock.json
 .gemini/
 docs/superpowers/
 
+
 # === IDE ===
 .vscode/
 .idea/

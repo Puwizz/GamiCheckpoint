@@ -385,4 +385,31 @@ describe('DetectionOverlayRenderer', () => {
 
     renderer.destroy();
   });
+
+  it('clips left/top overflow accurately under object-fit cover without shifting right/bottom edge', () => {
+    const canvas = createMockCanvas();
+    (canvas.getBoundingClientRect as any).mockReturnValue({ width: 300, height: 400 });
+    const video = { videoWidth: 640, videoHeight: 360 } as HTMLVideoElement;
+    const renderer = new DetectionOverlayRenderer(canvas, video);
+
+    const roi: ROIData = {
+      applied: true,
+      bbox: [0, 0, 320, 360],
+      frame_size: [640, 360],
+      method: 'yolo_detection',
+    };
+
+    renderer.updateOverlay({ roi, state: 'tracking', stepNumber: 1 });
+
+    const targetBox = (renderer as any).targetBox;
+    expect(targetBox).not.toBeNull();
+    // scale = 400 / 360, renderW = 640 * 400 / 360 = 711.11, offsetX = (300 - 711.11) / 2 = -205.56
+    // bx2 = 320 -> 320 * (400 / 360) - 205.56 = 150.0 -> clipped width should be ~150, NOT 300
+    expect(targetBox.x).toBe(0);
+    expect(targetBox.y).toBe(0);
+    expect(targetBox.width).toBeCloseTo(150, 1);
+    expect(targetBox.height).toBeCloseTo(400, 1);
+
+    renderer.destroy();
+  });
 });
