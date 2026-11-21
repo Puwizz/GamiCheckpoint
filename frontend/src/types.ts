@@ -11,6 +11,13 @@ export type OrigamiStepClass =
   | 'Chk5'
   | 'Chk6';
 
+export type FrameReadinessReason =
+  | 'ok'
+  | 'camera_placeholder_or_too_dark'
+  | 'frame_has_too_little_detail'
+  | 'empty_frame'
+  | 'invalid_frame_format';
+
 export interface BoundingBox {
   x1: number;
   y1: number;
@@ -39,7 +46,7 @@ export interface PredictionCandidate {
 
 export interface VerificationResult {
   frame_ready?: boolean;
-  reason?: string;
+  reason?: FrameReadinessReason | string;
   recognized?: boolean;
   recognition_reason?: string;
   prediction?: OrigamiStepClass | string;

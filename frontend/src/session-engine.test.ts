@@ -188,7 +188,112 @@ describe('StepSessionEngine (Deep Module Contract)', () => {
     expect(engine.getState().stepStreak).toBe(0); // Decayed by 1
     if (action.type === 'FRAME_NOT_READY') {
       expect(action.status.kind).toBe('waiting');
-      expect(action.status.title).toBe('Waiting for a real camera frame');
+      expect(action.status.icon).toBe('💡');
+      expect(action.status.title).toBe('แสงสว่างไม่เพียงพอ');
+      expect(action.status.description).toContain('มืดเกินไป');
+    }
+  });
+
+  it('returns targeted Thai status for camera_placeholder_or_too_dark', () => {
+    const unreadyFrame: VerificationResult = {
+      frame_ready: false,
+      recognized: false,
+      reason: 'camera_placeholder_or_too_dark',
+    };
+
+    const action = engine.evaluatePrediction(unreadyFrame);
+    expect(action.type).toBe('FRAME_NOT_READY');
+    if (action.type === 'FRAME_NOT_READY') {
+      expect(action.status.icon).toBe('💡');
+      expect(action.status.title).toBe('แสงสว่างไม่เพียงพอ');
+      expect(action.status.description).toContain('มืดเกินไป');
+    }
+  });
+
+  it('returns targeted Thai status for frame_has_too_little_detail', () => {
+    const unreadyFrame: VerificationResult = {
+      frame_ready: false,
+      recognized: false,
+      reason: 'frame_has_too_little_detail',
+    };
+
+    const action = engine.evaluatePrediction(unreadyFrame);
+    expect(action.type).toBe('FRAME_NOT_READY');
+    if (action.type === 'FRAME_NOT_READY') {
+      expect(action.status.icon).toBe('🔍');
+      expect(action.status.title).toBe('ภาพไม่ชัดเจนหรือแสงสะท้อนจ้า');
+      expect(action.status.description).toContain('ขาดความคมชัด');
+    }
+  });
+
+  it('returns targeted Thai status for empty_frame', () => {
+    const emptyFrame: VerificationResult = {
+      frame_ready: false,
+      recognized: false,
+      reason: 'empty_frame',
+    };
+
+    const action = engine.evaluatePrediction(emptyFrame);
+    expect(action.type).toBe('FRAME_NOT_READY');
+    if (action.type === 'FRAME_NOT_READY') {
+      expect(action.status.icon).toBe('📷');
+      expect(action.status.title).toBe('ไม่พบสัญญาณภาพจากกล้อง');
+      expect(action.status.description).toContain('จัดตำแหน่ง');
+    }
+  });
+
+  it('returns default Thai positioning status for missing or unknown unready reason', () => {
+    const missingReason: VerificationResult = {
+      frame_ready: false,
+      recognized: false,
+    };
+    const action1 = engine.evaluatePrediction(missingReason);
+    expect(action1.type).toBe('FRAME_NOT_READY');
+    if (action1.type === 'FRAME_NOT_READY') {
+      expect(action1.status.icon).toBe('📷');
+      expect(action1.status.title).toBe('จัดตำแหน่งกระดาษในกล้อง');
+    }
+
+    const unknownReason: VerificationResult = {
+      frame_ready: false,
+      recognized: false,
+      reason: 'invalid_frame_format',
+    };
+    const action2 = engine.evaluatePrediction(unknownReason);
+    expect(action2.type).toBe('FRAME_NOT_READY');
+    if (action2.type === 'FRAME_NOT_READY') {
+      expect(action2.status.icon).toBe('📷');
+      expect(action2.status.title).toBe('จัดตำแหน่งกระดาษในกล้อง');
+    }
+  });
+
+  it('recovers cleanly from FRAME_NOT_READY back to CONFIRMING when frames become ready', () => {
+    const matchingPrediction: VerificationResult = {
+      recognized: true,
+      step: 'Chk1',
+      step_number: 1,
+      confidence: 85,
+      top_gap: 20,
+    };
+
+    const initialAction = engine.evaluatePrediction(matchingPrediction);
+    expect(initialAction.type).toBe('CONFIRMING');
+    expect(engine.getState().stepStreak).toBe(1);
+
+    const unreadyAction = engine.evaluatePrediction({
+      frame_ready: false,
+      recognized: false,
+      reason: 'camera_placeholder_or_too_dark',
+    });
+    expect(unreadyAction.type).toBe('FRAME_NOT_READY');
+    expect(engine.getState().stepStreak).toBe(0);
+
+    const recoveredAction = engine.evaluatePrediction(matchingPrediction);
+    expect(recoveredAction.type).toBe('CONFIRMING');
+    if (recoveredAction.type === 'CONFIRMING') {
+      expect(recoveredAction.streak).toBe(1);
+      expect(recoveredAction.status.title).toContain('กำลังตรวจความถูกต้อง (1/3)');
+      expect(recoveredAction.status.title).not.toContain('แสงสว่างไม่เพียงพอ');
     }
   });
 

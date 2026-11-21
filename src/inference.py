@@ -325,6 +325,8 @@ class StepVerifier:
         def _raw_pct(raw_val: float) -> float:
             return round(raw_val * 100.0 if raw_val <= 1.0 else raw_val, 2)
 
+        # Rank classes and compute top_gap using step-prior-adjusted scores (raw_pct - penalty),
+        # while reporting raw unpenalized confidence percentages in prediction/top_predictions.
         sorted_classes = sorted(
             class_max_conf.items(),
             key=lambda item: (_raw_pct(item[1]) - _prior_penalty_for_class(item[0]), item[1]),

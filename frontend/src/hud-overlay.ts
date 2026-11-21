@@ -308,12 +308,12 @@ export class DetectionOverlayRenderer {
     const offsetY = (ch - renderH) / 2;
 
     const [bx1, by1, bx2, by2] = bbox;
-    const x = Math.max(0, bx1 * scale + offsetX);
-    const y = Math.max(0, by1 * scale + offsetY);
-    const width = Math.min(cw - x, (bx2 - bx1) * scale);
-    const height = Math.min(ch - y, (by2 - by1) * scale);
+    const x1 = Math.max(0, Math.min(cw, bx1 * scale + offsetX));
+    const y1 = Math.max(0, Math.min(ch, by1 * scale + offsetY));
+    const x2 = Math.max(0, Math.min(cw, bx2 * scale + offsetX));
+    const y2 = Math.max(0, Math.min(ch, by2 * scale + offsetY));
 
-    return { x, y, width, height };
+    return { x: x1, y: y1, width: Math.max(0, x2 - x1), height: Math.max(0, y2 - y1) };
   }
 
   private startRenderLoop(): void {

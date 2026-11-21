@@ -243,7 +243,7 @@ def test_predict_success_frame_not_ready(client, monkeypatch):
     mock_res = MagicMock()
     mock_res.to_dict.return_value = {
         "frame_ready": False,
-        "reason": "frame_too_dark",
+        "reason": "camera_placeholder_or_too_dark",
         "metrics": {"mean_luma": 10.0},
     }
     mock_verifier.verify_bytes.return_value = mock_res
@@ -257,7 +257,7 @@ def test_predict_success_frame_not_ready(client, monkeypatch):
     assert response.status_code == 200
     data = response.json()
     assert data["frame_ready"] is False
-    assert data["reason"] == "frame_too_dark"
+    assert data["reason"] == "camera_placeholder_or_too_dark"
 
 
 def test_consistent_error_response_schema_detail_and_error(client):

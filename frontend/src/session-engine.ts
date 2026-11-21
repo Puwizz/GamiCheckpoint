@@ -34,6 +34,39 @@ export interface SessionEngineState {
   isAdvancing: boolean;
 }
 
+export function formatFrameNotReadyStatus(reason?: string): UIStatusState {
+  if (reason === 'camera_placeholder_or_too_dark') {
+    return {
+      kind: 'waiting',
+      icon: '💡',
+      title: 'แสงสว่างไม่เพียงพอ',
+      description: 'ภาพจากกล้องมืดเกินไป กรุณาเปิดไฟหรือขยับกระดาษมาในจุดที่มีแสงสว่าง',
+    };
+  }
+  if (reason === 'frame_has_too_little_detail') {
+    return {
+      kind: 'waiting',
+      icon: '🔍',
+      title: 'ภาพไม่ชัดเจนหรือแสงสะท้อนจ้า',
+      description: 'ภาพขาดความคมชัด กรุณาถือกระดาษให้อยู่นิ่งๆ และหลีกเลี่ยงแสงสะท้อนจ้า',
+    };
+  }
+  if (reason === 'empty_frame') {
+    return {
+      kind: 'waiting',
+      icon: '📷',
+      title: 'ไม่พบสัญญาณภาพจากกล้อง',
+      description: 'กรุณาเปิดกล้องและจัดตำแหน่งกระดาษให้อยู่กึ่งกลางหน้าจอ',
+    };
+  }
+  return {
+    kind: 'waiting',
+    icon: '📷',
+    title: 'จัดตำแหน่งกระดาษในกล้อง',
+    description: 'กรุณาส่องกล้องไปที่กระดาษโอริกามิให้เห็นชัดเจน',
+  };
+}
+
 export class StepSessionEngine {
   private currentStep: number = 1;
   private totalSteps: number = TOTAL_STEPS;
@@ -136,12 +169,7 @@ export class StepSessionEngine {
       this.decayStreak();
       return {
         type: 'FRAME_NOT_READY',
-        status: {
-          kind: 'waiting',
-          icon: '...',
-          title: 'Waiting for a real camera frame',
-          description: 'Connect the phone camera and show the paper clearly in frame.',
-        },
+        status: formatFrameNotReadyStatus(data.reason || data.recognition_reason),
       };
     }
 

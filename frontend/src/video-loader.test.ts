@@ -301,4 +301,14 @@ describe('Video Fullscreen Helpers', () => {
     expect(container.classList.contains('is-css-fullscreen')).toBe(false);
     expect(isVideoFullscreen(container, video, mockDoc)).toBe(false);
   });
+
+  it('returns false from isVideoFullscreen when container is null or undefined', async () => {
+    const exitFullscreen = vi.fn();
+    expect(isVideoFullscreen(null, {}, { fullscreenElement: null, exitFullscreen })).toBe(false);
+    expect(isVideoFullscreen(undefined, {}, {})).toBe(false);
+
+    const toggled = await toggleVideoFullscreen(null, {}, { fullscreenElement: null, exitFullscreen });
+    expect(toggled).toBe(false);
+    expect(exitFullscreen).not.toHaveBeenCalled();
+  });
 });

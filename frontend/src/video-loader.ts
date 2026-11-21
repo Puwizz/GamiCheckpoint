@@ -164,7 +164,7 @@ export function isVideoFullscreen(
   if (container?.classList?.contains('is-css-fullscreen')) return true;
   if (video?.webkitDisplayingFullscreen) return true;
   const d = doc !== undefined ? doc : (typeof document !== 'undefined' ? document : null);
-  if (d && (d.fullscreenElement === container || d.webkitFullscreenElement === container)) {
+  if (d && container && (d.fullscreenElement === container || d.webkitFullscreenElement === container)) {
     return true;
   }
   return false;

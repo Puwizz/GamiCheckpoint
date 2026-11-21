@@ -1,5 +1,10 @@
+import { FrameReadinessReason } from './types';
+
+export type FrameUnreadyReason = FrameReadinessReason;
+
 export interface FrameQuality {
   ready: boolean;
+  reason: FrameUnreadyReason;
   meanLuma: number;
   contrast: number;
   darkRatio: number;
@@ -150,7 +155,7 @@ export class CameraStreamAdapter {
       if (vw === 0 || vh === 0) {
         resolve({
           blob: null,
-          quality: { ready: false, meanLuma: 0, contrast: 0, darkRatio: 1 },
+          quality: { ready: false, reason: 'empty_frame', meanLuma: 0, contrast: 0, darkRatio: 1 },
           captureWidth: 0,
           captureHeight: 0,
         });
@@ -178,14 +183,14 @@ export class CameraStreamAdapter {
         this.captureCtx = null;
       }
       if (!this.captureCtx) {
-        this.captureCtx = this.captureCanvas.getContext('2d');
+        this.captureCtx = this.captureCanvas.getContext('2d', { willReadFrequently: true });
       }
 
       const ctx = this.captureCtx;
       if (!ctx) {
         resolve({
           blob: null,
-          quality: { ready: false, meanLuma: 0, contrast: 0, darkRatio: 1 },
+          quality: { ready: false, reason: 'empty_frame', meanLuma: 0, contrast: 0, darkRatio: 1 },
           captureWidth: 0,
           captureHeight: 0,
         });
@@ -212,6 +217,10 @@ export class CameraStreamAdapter {
 
   private analyzeCanvasQuality(ctx: CanvasRenderingContext2D, width: number, height: number): FrameQuality {
     const imageData = ctx.getImageData(0, 0, width, height).data;
+    if (!imageData || imageData.length < 4) {
+      return { ready: false, reason: 'empty_frame', meanLuma: 0, contrast: 0, darkRatio: 1 };
+    }
+
     const stride = Math.max(4, Math.floor(imageData.length / 4 / 7000) * 4);
     let samples = 0;
     let darkPixels = 0;
@@ -222,22 +231,31 @@ export class CameraStreamAdapter {
       const red = imageData[index];
       const green = imageData[index + 1];
       const blue = imageData[index + 2];
-      const luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+      // Use Rec.601 weights to match OpenCV cv2.cvtColor(..., cv2.COLOR_BGR2GRAY) on backend
+      const luma = 0.299 * red + 0.587 * green + 0.114 * blue;
       lumaSum += luma;
       lumaSquaredSum += luma * luma;
       if (luma < 25) darkPixels += 1;
       samples += 1;
     }
 
+    if (samples === 0) {
+      return { ready: false, reason: 'empty_frame', meanLuma: 0, contrast: 0, darkRatio: 1 };
+    }
+
     const meanLuma = lumaSum / samples;
     const variance = Math.max(0, lumaSquaredSum / samples - meanLuma * meanLuma);
     const contrast = Math.sqrt(variance);
     const darkRatio = darkPixels / samples;
-    const ready = !(
-      (meanLuma < FRAME_READY_RULE.minMeanLuma && darkRatio > FRAME_READY_RULE.maxDarkRatio) ||
-      contrast < FRAME_READY_RULE.minContrast
-    );
 
-    return { ready, meanLuma, contrast, darkRatio };
+    let reason: FrameUnreadyReason = 'ok';
+    if (meanLuma < FRAME_READY_RULE.minMeanLuma && darkRatio > FRAME_READY_RULE.maxDarkRatio) {
+      reason = 'camera_placeholder_or_too_dark';
+    } else if (contrast < FRAME_READY_RULE.minContrast) {
+      reason = 'frame_has_too_little_detail';
+    }
+    const ready = reason === 'ok';
+
+    return { ready, reason, meanLuma, contrast, darkRatio };
   }
 }
